@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { fetchQuestions, filterQuestions, pickRandomQuestions, resetQuestionTracking } from "@/lib/questions";
 import type { Question } from "@/types";
 import InterviewRecorder from "@/components/InterviewRecorder";
@@ -16,7 +16,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 export const dynamic = 'force-dynamic';
 
-export default function PracticeSessionPage() {
+function PracticeSessionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const role = searchParams.get("role") || "Backend Engineer";
@@ -477,6 +477,23 @@ export default function PracticeSessionPage() {
         </main>
       </div>
     </RequireAuth>
+  );
+}
+
+export default function PracticeSessionPage() {
+  return (
+    <Suspense fallback={
+      <RequireAuth>
+        <div className="min-h-screen bg-white">
+          <Header />
+          <div className="max-w-6xl mx-auto p-6">
+            <p className="text-sm text-gray-600">Loading session...</p>
+          </div>
+        </div>
+      </RequireAuth>
+    }>
+      <PracticeSessionContent />
+    </Suspense>
   );
 }
 
