@@ -14,9 +14,8 @@ const BASE_DELAY_MS = 750;
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024; // 8MB cap for inline video
 // Prefer stable, generally available multimodal models; fall back to text if needed
 const MULTIMODAL_MODELS = [
-  "gemini-3-pro",           // Try Gemini 3 Pro first (if available)
-  "gemini-2.5-flash",       // Primary fallback - stable and available
-  "gemini-1.5-flash",       // Older fallback
+  "gemini-2.5-flash",       // Primary model - stable and available
+  "gemini-1.5-flash",       // Fallback option
   "gemini-1.5-pro",         // Last resort
 ];
 
