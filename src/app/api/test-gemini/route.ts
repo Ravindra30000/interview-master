@@ -21,8 +21,9 @@ export async function GET() {
         const listData = await listResponse.json();
         availableModels = (listData.models || []).map((m: any) => m.name?.replace('models/', '') || m.name).filter(Boolean);
       }
-    } catch (err) {
-      console.log("Could not list models:", err);
+    } catch (err: any) {
+      const errorMessage = err?.message || String(err);
+      console.log("Could not list models:", errorMessage);
     }
     
     // Try common model names

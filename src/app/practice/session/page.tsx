@@ -169,8 +169,9 @@ export default function PracticeSessionPage() {
           if (failedCount > 0) {
             console.warn(`${failedCount} video(s) failed to upload (likely due to size limits)`);
           }
-        } catch (uploadError) {
-          console.error("Video upload failed (continuing without videos):", uploadError);
+        } catch (uploadError: any) {
+          const errorMessage = uploadError?.message || String(uploadError);
+          console.error("Video upload failed (continuing without videos):", errorMessage);
           setStatusMessage("Video upload failed; saving without videos.");
           // Continue without videos - not critical
         }
@@ -252,9 +253,10 @@ export default function PracticeSessionPage() {
         // Redirect to results page with interview ID
         router.push(`/results/${savedInterviewId}`);
         setStatusMessage(null);
-      } catch (err) {
-        console.error("Analysis error:", err);
-        setStatusMessage(err instanceof Error ? err.message : "Analysis failed. Falling back to local save.");
+      } catch (err: any) {
+        const errorMessage = err instanceof Error ? err.message : (err?.message || String(err));
+        console.error("Analysis error:", errorMessage);
+        setStatusMessage(errorMessage || "Analysis failed. Falling back to local save.");
         
         // Try to save with local scoring only
         try {
@@ -282,8 +284,9 @@ export default function PracticeSessionPage() {
             videoUrls = await uploadInterviewVideos(user.uid, interviewId, videoBlobs);
             const uploadedCount = videoUrls.filter(Boolean).length;
             console.log(`Videos uploaded: ${uploadedCount}/${videoBlobs.filter(Boolean).length}`);
-          } catch (uploadError) {
-            console.error("Video upload failed (continuing without videos):", uploadError);
+          } catch (uploadError: any) {
+            const errorMessage = uploadError?.message || String(uploadError);
+            console.error("Video upload failed (continuing without videos):", errorMessage);
           }
 
           const interviewSession = {
@@ -307,8 +310,9 @@ export default function PracticeSessionPage() {
           );
           router.push(`/results/${savedInterviewId}?error=analysis_failed`);
           setStatusMessage(null);
-        } catch (saveErr) {
-          console.error("Failed to save interview:", saveErr);
+        } catch (saveErr: any) {
+          const errorMessage = saveErr?.message || String(saveErr);
+          console.error("Failed to save interview:", errorMessage);
           setStatusMessage("Unable to save interview. Your answers may not be stored.");
           // Last resort: use URL params
           const score = results.reduce((sum, r) => sum + (r?.localScore || 0), 0) / (results.length || 1);

@@ -84,8 +84,9 @@ export default function ProfilePage() {
         // Load stats
         const statsData = await getInterviewStats(currentUser.uid);
         setStats(statsData);
-      } catch (error) {
-        console.error("Error loading user data:", error);
+      } catch (error: any) {
+        const errorMessage = error?.message || String(error);
+        console.error("Error loading user data:", errorMessage);
         setError("Failed to load profile data");
       } finally {
         setLoading(false);

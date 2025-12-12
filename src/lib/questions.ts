@@ -55,8 +55,9 @@ export async function fetchQuestions(): Promise<Question[]> {
       const data = await res.json();
       console.log(`Loaded ${data.questions?.length || 0} questions from local JSON (fallback)`);
       return data.questions as Question[];
-    } catch (fallbackError) {
-      console.error("Both Firestore and local JSON failed:", fallbackError);
+    } catch (fallbackError: any) {
+      const errorMessage = fallbackError?.message || String(fallbackError);
+      console.error("Both Firestore and local JSON failed:", errorMessage);
       throw new Error("Failed to load questions. Please ensure questions are imported to Firestore or questions.json exists.");
     }
   }
@@ -70,8 +71,9 @@ export async function countFirestoreQuestions(): Promise<number> {
     const questionsRef = collection(db, "questions");
     const snapshot = await getDocs(questionsRef);
     return snapshot.size;
-  } catch (error) {
-    console.error("Error counting Firestore questions:", error);
+  } catch (error: any) {
+    const errorMessage = error?.message || String(error);
+    console.error("Error counting Firestore questions:", errorMessage);
     throw error;
   }
 }

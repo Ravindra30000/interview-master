@@ -43,8 +43,9 @@ export default function DashboardPage() {
 
         setAllInterviews(interviewData);
         setStats(statsData);
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
+      } catch (error: any) {
+        const errorMessage = error?.message || String(error);
+        console.error("Error loading dashboard data:", errorMessage);
       } finally {
         setLoading(false);
       }

@@ -22,7 +22,7 @@ export default function Header() {
     setLoading(true);
     try {
       await signOut(auth);
-      router.push("/");
+      router.push("/login");
     } finally {
       setLoading(false);
     }

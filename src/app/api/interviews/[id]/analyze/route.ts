@@ -96,8 +96,9 @@ export async function POST(
             });
           }
         }
-      } catch (videoErr) {
-        console.error("[analyze] video fetch/inline failed", videoErr);
+      } catch (videoErr: any) {
+        const errorMessage = videoErr?.message || String(videoErr);
+        console.error("[analyze] video fetch/inline failed", errorMessage);
       }
     }
 
@@ -109,8 +110,9 @@ export async function POST(
         model = genAI.getGenerativeModel({ model: candidate });
         selectedModel = candidate;
         break;
-      } catch (modelErr) {
-        console.warn("[analyze] failed to init model", candidate, modelErr?.message || modelErr);
+      } catch (modelErr: any) {
+        const errorMessage = modelErr?.message || String(modelErr);
+        console.warn("[analyze] failed to init model", candidate, errorMessage);
         continue;
       }
     }
@@ -220,7 +222,7 @@ Rules:
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch (e) {
+    } catch (e: any) {
       // Fallback to legacy parsing if JSON is not returned
       const scoreMatch = text.match(/SCORE:\s*(\d+(?:\.\d+)?)/);
       const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]*?)IMPROVEMENTS:/);
