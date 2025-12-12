@@ -300,8 +300,9 @@ export default function PracticeSessionPage() {
           const savedInterviewId = await saveInterviewSession(
             user.uid,
             interviewSession,
-            undefined,
-            interviewId
+            undefined,      // analysis (no analysis available on error)
+            undefined,       // multimodalAnalysis (no multimodal data on error)
+            interviewId      // interviewId (5th parameter)
           );
           router.push(`/results/${savedInterviewId}?error=analysis_failed`);
           setStatusMessage(null);
