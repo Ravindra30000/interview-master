@@ -26,12 +26,14 @@ export async function GET() {
       console.log("Could not list models:", errorMessage);
     }
     
-    // Try common model names
+    // Try common model names (prioritize newer models)
     const modelNames = [
+      "gemini-3-pro",
+      "gemini-2.5-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
       "gemini-1.5-pro-latest",
       "gemini-1.5-flash-latest", 
-      "gemini-1.5-pro",
-      "gemini-1.5-flash",
       "gemini-pro",
       ...availableModels.slice(0, 5) // Try first 5 from list
     ];
