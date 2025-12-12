@@ -40,9 +40,9 @@ interface SpeechRecognitionAlternative {
   confidence: number;
 }
 
-interface Window {
-  SpeechRecognition: typeof SpeechRecognition;
-  webkitSpeechRecognition: typeof SpeechRecognition;
+// Constructor type for SpeechRecognition
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
 }
 
 interface Props {
