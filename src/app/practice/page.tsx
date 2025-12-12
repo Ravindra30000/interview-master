@@ -8,6 +8,8 @@ import Header from "@/components/Header";
 import RequireAuth from "@/components/RequireAuth";
 import ImportQuestionsButton from "@/components/ImportQuestionsButton";
 
+export const dynamic = 'force-dynamic';
+
 const difficulties = ["Junior", "Mid", "Senior"];
 
 export default function PracticeSetupPage() {

@@ -16,6 +16,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getInterviewStats } from "@/lib/interviews";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 interface UserPreferences {
   favoriteRole?: string;
   difficulty?: string;

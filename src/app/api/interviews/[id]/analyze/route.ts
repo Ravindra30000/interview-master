@@ -11,10 +11,16 @@ interface RequestBody {
 
 const MAX_RETRIES = 4;
 const BASE_DELAY_MS = 750;
-const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // 20MB cap for File API upload
-// Try Gemini 3 Pro first, fallback to Gemini 2.5 Flash
-const PRIMARY_MODEL = "gemini-3-pro";
-const FALLBACK_MODEL = "gemini-2.5-flash";
+const MAX_VIDEO_BYTES = 8 * 1024 * 1024; // 8MB cap for inline video
+// Prefer stable, generally available multimodal models; fall back to text if needed
+const MULTIMODAL_MODELS = [
+  "gemini-1.5-pro",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro-latest",
+  "gemini-1.5-flash-latest",
+  // Fallback to text-only but newer if needed
+  "gemini-2.5-flash",
+];
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,9 +48,13 @@ export async function POST(
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-
-    // Check if video URLs are provided (for mock multimodal data)
-    const hasVideo = body.videoUrls && body.videoUrls.length > 0;
+    
+    const videoHint =
+      body.videoUrls && body.videoUrls.length > 0
+        ? `Video evidence is available at: ${body.videoUrls.slice(0, 3).join(
+            ", "
+          )}. Evaluate delivery, lip sync, voice clarity, confidence, body language, and timing using the video.`
+        : `No video provided. Infer delivery and speaking style from the transcript only.`;
 
     if (process.env.NODE_ENV === "development") {
       console.log("[analyze] request received", {
@@ -55,17 +65,63 @@ export async function POST(
       });
     }
 
-    // Build video hint
-    const videoHint = hasVideo
-      ? `A video recording is provided. Analyze speaking pace, pauses, filler words, articulation, lip sync, confidence, posture, gaze, body language, and timing from the video.`
-      : `No video provided. Infer delivery and speaking style from the transcript only.`;
+    // Try to inline the first video (if small enough) so Gemini can actually see it
+    let videoInlinePart: any | null = null;
+    const firstVideoUrl = body.videoUrls?.[0];
+    if (firstVideoUrl) {
+      try {
+        const videoResp = await fetch(firstVideoUrl);
+        if (!videoResp.ok) {
+          throw new Error(`Failed to fetch video: status ${videoResp.status}`);
+        }
+        const buf = Buffer.from(await videoResp.arrayBuffer());
+        if (buf.byteLength <= MAX_VIDEO_BYTES) {
+          videoInlinePart = {
+            inlineData: {
+              data: buf.toString("base64"),
+              mimeType: videoResp.headers.get("Content-Type") || "video/webm",
+            },
+          };
+          if (process.env.NODE_ENV === "development") {
+            console.log("[analyze] inlining video", {
+              bytes: buf.byteLength,
+              mimeType: videoResp.headers.get("Content-Type"),
+            });
+          }
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[analyze] video too large to inline", {
+              bytes: buf.byteLength,
+              cap: MAX_VIDEO_BYTES,
+            });
+          }
+        }
+      } catch (videoErr) {
+        console.error("[analyze] video fetch/inline failed", videoErr);
+      }
+    }
 
-    // Try Gemini 3 Pro first, fallback to Gemini 2.5 Flash if unavailable
-    let model = genAI.getGenerativeModel({ model: PRIMARY_MODEL });
-    let selectedModel = PRIMARY_MODEL;
-    
+    // Select a multimodal-capable model with fallbacks
+    let model = null;
+    let selectedModel = "";
+    for (const candidate of MULTIMODAL_MODELS) {
+      try {
+        model = genAI.getGenerativeModel({ model: candidate });
+        selectedModel = candidate;
+        break;
+      } catch (modelErr) {
+        console.warn("[analyze] failed to init model", candidate, modelErr?.message || modelErr);
+        continue;
+      }
+    }
+    if (!model) {
+      return NextResponse.json(
+        { error: "No available Gemini model for analysis." },
+        { status: 503 }
+      );
+    }
     if (process.env.NODE_ENV === "development") {
-      console.log("[analyze] attempting model", PRIMARY_MODEL, "with video:", hasVideo);
+      console.log("[analyze] using model", selectedModel);
     }
 
     const prompt = `
@@ -99,21 +155,26 @@ Rules:
 `;
 
     // Retry on transient Gemini errors (e.g., 503 overloaded)
-    // Try primary model first, fallback to secondary if model not found
     let result;
-    let modelNotFound = false;
-    
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        result = await model.generateContent(prompt);
+        const parts: any[] = [];
+        if (videoInlinePart) {
+          parts.push(videoInlinePart);
+        }
+        parts.push({ text: prompt });
+
+        result = await model.generateContent({
+          contents: [
+            {
+              role: "user",
+              parts,
+            },
+          ],
+        });
         break;
       } catch (err: any) {
         const msg = err?.message || "";
-        const isModelNotFound =
-          msg.includes("404") ||
-          msg.includes("not found") ||
-          msg.includes("MODEL_NOT_FOUND") ||
-          msg.includes("does not exist");
         const isOverloaded =
           msg.includes("503") ||
           msg.includes("overloaded") ||
@@ -123,18 +184,7 @@ Rules:
           msg.includes("SERVICE_DISABLED") ||
           msg.includes("has not been used") ||
           msg.includes("activation");
-        
-        // If model not found and we're using primary model, try fallback
-        if (isModelNotFound && selectedModel === PRIMARY_MODEL && !modelNotFound) {
-          modelNotFound = true;
-          model = genAI.getGenerativeModel({ model: FALLBACK_MODEL });
-          selectedModel = FALLBACK_MODEL;
-          if (process.env.NODE_ENV === "development") {
-            console.log("[analyze] primary model not available, falling back to", FALLBACK_MODEL);
-          }
-          continue;
-        }
-        
+
         if (isServiceDisabled) {
           console.error("Gemini service disabled or not activated:", msg);
           return NextResponse.json(
@@ -144,7 +194,7 @@ Rules:
         }
 
         const shouldRetry = isOverloaded && attempt < MAX_RETRIES - 1;
-        console.warn(`Gemini attempt ${attempt + 1} failed (${selectedModel}): ${msg}`);
+        console.warn(`Gemini attempt ${attempt + 1} failed: ${msg}`);
         if (shouldRetry) {
           const delay = BASE_DELAY_MS * Math.pow(2, attempt);
           await wait(delay);
@@ -153,10 +203,6 @@ Rules:
 
         throw err;
       }
-    }
-    
-    if (process.env.NODE_ENV === "development" && result) {
-      console.log("[analyze] successfully used model", selectedModel);
     }
 
     if (!result) {
@@ -173,14 +219,7 @@ Rules:
 
     let parsed;
     try {
-      // Remove markdown code blocks if present
-      let jsonText = text.trim();
-      if (jsonText.startsWith("```json")) {
-        jsonText = jsonText.replace(/^```json\s*/i, "").replace(/\s*```$/i, "");
-      } else if (jsonText.startsWith("```")) {
-        jsonText = jsonText.replace(/^```\s*/i, "").replace(/\s*```$/i, "");
-      }
-      parsed = JSON.parse(jsonText);
+      parsed = JSON.parse(text);
     } catch (e) {
       // Fallback to legacy parsing if JSON is not returned
       const scoreMatch = text.match(/SCORE:\s*(\d+(?:\.\d+)?)/);
@@ -207,94 +246,14 @@ Rules:
       return NextResponse.json(legacy);
     }
 
-    // Generate mock multimodal data if video was provided but analysis didn't return multimodal
-    let multimodalData = parsed.multimodal;
-    
-    if (!multimodalData && hasVideo) {
-      // Generate mock multimodal analysis based on transcript score
-      const baseScore = typeof parsed.score === "number" ? parsed.score : 5;
-      const deliveryScore = Math.max(4, Math.min(9, baseScore + (Math.random() - 0.5) * 2));
-      const voiceScore = Math.max(4, Math.min(9, baseScore + (Math.random() - 0.5) * 1.5));
-      const confidenceScore = Math.max(4, Math.min(9, baseScore + (Math.random() - 0.5) * 1.5));
-      const timingScore = Math.max(4, Math.min(9, baseScore + (Math.random() - 0.5) * 1));
-      const bodyLanguageScore = Math.max(4, Math.min(9, baseScore + (Math.random() - 0.5) * 1));
-      // Use the actual Gemini score as overall_score (not average of sub-scores)
-      const overallScore = baseScore;
-
-      multimodalData = {
-        overall_score: Number(overallScore.toFixed(1)),
-        delivery: {
-          score: Number(deliveryScore.toFixed(1)),
-          notes: deliveryScore >= 7 
-            ? "Good pacing and clear articulation. Maintains steady rhythm throughout the answer."
-            : "Consider varying your pace and adding more pauses for emphasis. Work on clearer articulation.",
-          suggestions: deliveryScore >= 7
-            ? ["Continue maintaining good pacing", "Add strategic pauses for key points"]
-            : ["Slow down slightly for clarity", "Practice pausing before important statements", "Work on reducing filler words"]
-        },
-        voice: {
-          score: Number(voiceScore.toFixed(1)),
-          notes: voiceScore >= 7
-            ? "Clear and audible voice. Good volume and tone consistency."
-            : "Voice could be clearer. Consider speaking louder and maintaining consistent tone.",
-          suggestions: voiceScore >= 7
-            ? ["Maintain current voice clarity", "Continue projecting confidently"]
-            : ["Increase volume slightly", "Practice speaking with more confidence", "Work on tone variation"]
-        },
-        confidence: {
-          score: Number(confidenceScore.toFixed(1)),
-          notes: confidenceScore >= 7
-            ? "Demonstrates good confidence. Appears comfortable and self-assured."
-            : "Confidence can be improved. Practice speaking with more conviction and authority.",
-          suggestions: confidenceScore >= 7
-            ? ["Continue building on your confidence", "Maintain assertive tone"]
-            : ["Practice speaking with more conviction", "Work on maintaining eye contact", "Reduce hesitation in speech"]
-        },
-        timing: {
-          score: Number(timingScore.toFixed(1)),
-          notes: timingScore >= 7
-            ? "Good time management. Answer fits well within the allocated time."
-            : "Timing could be improved. Consider being more concise or expanding key points.",
-          suggestions: timingScore >= 7
-            ? ["Continue managing time effectively", "Maintain balanced answer length"]
-            : ["Practice concise answers", "Plan key points before speaking", "Work on time awareness"]
-        },
-        body_language: {
-          score: Number(bodyLanguageScore.toFixed(1)),
-          notes: bodyLanguageScore >= 7
-            ? "Positive body language observed. Good posture and engagement."
-            : "Body language can be enhanced. Focus on maintaining good posture and natural gestures.",
-          suggestions: bodyLanguageScore >= 7
-            ? ["Continue positive body language", "Maintain good posture"]
-            : ["Practice maintaining eye contact", "Work on natural hand gestures", "Improve posture and presence"]
-        },
-        top_improvements: [
-          baseScore < 7 ? "Focus on speaking with more confidence and clarity" : "Continue building on your strengths",
-          baseScore < 7 ? "Work on reducing filler words and improving pacing" : "Maintain your current speaking style",
-          baseScore < 7 ? "Practice maintaining better posture and eye contact" : "Keep up the good work"
-        ]
-      };
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[analyze] generated mock multimodal data (video analysis not available)");
-      }
-    }
-
     // Normalize parsed response
-    const actualScore = typeof parsed.score === "number" ? parsed.score : 5;
-    
-    // If multimodal data exists but doesn't have overall_score, use the main score
-    if (multimodalData && (multimodalData.overall_score === undefined || multimodalData.overall_score === null)) {
-      multimodalData.overall_score = actualScore;
-    }
-    
     const response = {
-      score: actualScore,
+      score: typeof parsed.score === "number" ? parsed.score : 5,
       feedback: parsed.feedback || "Good effort! Keep practicing.",
       improvements: Array.isArray(parsed.improvements)
         ? parsed.improvements.slice(0, 3)
         : ["Practice speaking more confidently", "Use specific examples", "Improve structure"],
-      multimodal: multimodalData || null,
+      multimodal: parsed.multimodal || null,
     };
 
     if (process.env.NODE_ENV === "development") {
@@ -302,7 +261,6 @@ Rules:
         hasMultimodal: !!response.multimodal,
         multimodalKeys: response.multimodal ? Object.keys(response.multimodal) : [],
         improvementsCount: response.improvements.length,
-        isMockData: hasVideo && !parsed.multimodal,
       });
     }
 

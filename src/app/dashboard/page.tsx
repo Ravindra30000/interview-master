@@ -10,6 +10,8 @@ import { auth } from "@/lib/firebase";
 import type { Interview } from "@/types";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const [allInterviews, setAllInterviews] = useState<Interview[]>([]);
   const [stats, setStats] = useState({

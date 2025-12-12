@@ -7,7 +7,6 @@ import Header from "@/components/Header";
 import RequireAuth from "@/components/RequireAuth";
 import { getInterview } from "@/lib/interviews";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import type { Interview } from "@/types";
 
 interface ResultData {
@@ -29,26 +28,17 @@ export default function ResultsPage() {
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Wait for auth state to be determined before loading interview
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setAuthChecked(true);
-      if (!user) {
-        setErrorMessage("Please log in to view results");
-        setLoading(false);
-        return;
-      }
-
-      // Auth is ready, proceed to load interview
-      if (!interviewId) {
-        setErrorMessage("Invalid interview ID");
-        setLoading(false);
-        return;
-      }
-
+    const loadInterview = async () => {
       try {
+        const user = auth.currentUser;
+        if (!user) {
+          setErrorMessage("Please log in to view results");
+          setLoading(false);
+          return;
+        }
+
         // If interviewId is a timestamp (legacy URL), use fallback
         if (interviewId && !isNaN(Number(interviewId)) && interviewId.length > 10) {
           const demoScore = searchParams.get("score");
@@ -94,18 +84,23 @@ export default function ResultsPage() {
         }
 
         setInterview(interviewData);
-        setLoading(false);
       } catch (err: any) {
         console.error("Error loading interview:", err);
         setErrorMessage(err.message || "Failed to load interview");
+      } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    if (interviewId) {
+      loadInterview();
+    } else {
+      setErrorMessage("Invalid interview ID");
+      setLoading(false);
+    }
   }, [interviewId, error, searchParams]);
 
-  if (loading || !authChecked) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />

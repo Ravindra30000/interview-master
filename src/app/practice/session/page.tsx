@@ -14,6 +14,8 @@ import { auth, db } from "@/lib/firebase";
 import { uploadInterviewVideos, MAX_TOTAL_SIZE_PER_SESSION } from "@/lib/storage";
 import { doc, getDoc } from "firebase/firestore";
 
+export const dynamic = 'force-dynamic';
+
 export default function PracticeSessionPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -300,9 +302,8 @@ export default function PracticeSessionPage() {
           const savedInterviewId = await saveInterviewSession(
             user.uid,
             interviewSession,
-            undefined,      // analysis (no analysis available on error)
-            undefined,       // multimodalAnalysis (no multimodal data on error)
-            interviewId      // interviewId (5th parameter)
+            undefined,
+            interviewId
           );
           router.push(`/results/${savedInterviewId}?error=analysis_failed`);
           setStatusMessage(null);
