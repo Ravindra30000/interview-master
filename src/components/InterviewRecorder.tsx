@@ -110,14 +110,14 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   }, [recording, maxDurationSec]);
 
   const startSpeechRecognition = () => {
-    const SpeechRecognition =
+    const SpeechRecognitionConstructor =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    if (!SpeechRecognitionConstructor) {
       setSttAvailable(false);
       return;
     }
     setSttAvailable(true);
-    const recognition: SpeechRecognition = new SpeechRecognition();
+    const recognition: SpeechRecognition = new SpeechRecognitionConstructor();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
