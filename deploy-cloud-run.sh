@@ -18,7 +18,7 @@ FIREBASE_MESSAGING_SENDER_ID="921696971578"
 FIREBASE_APP_ID="1:921696971578:web:c252b8b7683e8e69893e03"
 
 # Gemini API Key
-GEMINI_API_KEY="AIzaSyBJCuxWYzP9_Xe5Ugv9avBrDRzWnAlYCdQ"
+GEMINI_API_KEY="AIzaSyAfpsnxc982R0T71KcCyAJiq4yQ1YG0NpQ"
 
 echo "Building Docker image with environment variables..."
 gcloud builds submit \
