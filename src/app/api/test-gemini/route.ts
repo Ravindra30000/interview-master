@@ -26,9 +26,12 @@ export async function GET() {
       console.log("Could not list models:", errorMessage);
     }
     
-    // Try common model names (prioritize gemini-2.5-flash)
+    // Try common model names (prioritize available models)
     const modelNames = [
-      "gemini-2.5-flash",    // Primary model
+      "gemini-3-pro-preview", // Try preview version first (available in account)
+      "gemini-3-pro",         // Try stable version
+      "gemini-2.5-flash",     // Primary fallback - confirmed working
+      "gemini-2.5-pro",       // Alternative fallback
       "gemini-1.5-flash",
       "gemini-1.5-pro",
       "gemini-1.5-pro-latest",

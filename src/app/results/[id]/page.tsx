@@ -134,8 +134,11 @@ export default function ResultsPage() {
   }
 
   const data: ResultData = {
-    score: interview.analysis?.score || interview.localMetrics ? 
-      (interview.localMetrics!.confidence + interview.localMetrics!.clarity + interview.localMetrics!.structure) / 3 * 10 : 0,
+    // Use AI score first, then multimodal overall score, then local metrics as last resort
+    score: interview.analysis?.score || 
+           interview.multimodalAnalysis?.overall_score || 
+           (interview.localMetrics ? 
+             (interview.localMetrics.confidence + interview.localMetrics.clarity + interview.localMetrics.structure) / 3 * 10 : 0),
     feedback: interview.analysis?.feedback || "No feedback available.",
     improvements: interview.analysis?.improvements || [],
     videoUrl: interview.videoUrl,
@@ -157,15 +160,58 @@ export default function ResultsPage() {
       ["Date", interview.createdAt.toLocaleDateString()],
       ["Role", interview.role],
       ["Difficulty", interview.difficulty],
-      ["Score", data.score?.toFixed(1) || "N/A"],
+      ["Overall Score", data.score?.toFixed(1) || "N/A"],
       ["", ""],
       ["Feedback", data.feedback || ""],
       ["", ""],
-      ["Improvements", ""],
+      ["Areas to Improve", ""],
       ...(data.improvements || []).map((imp, idx) => [`${idx + 1}.`, imp]),
       ["", ""],
-      ["Questions & Answers", ""],
     ];
+
+    // Add multimodal analysis if available
+    if (data.multimodal) {
+      rows.push(["Multimodal Analysis", ""]);
+      rows.push(["Overall Multimodal Score", data.multimodal.overall_score?.toFixed(1) || "N/A"]);
+      rows.push(["", ""]);
+      
+      // Add each dimension
+      const dimensions = [
+        { key: "emotions", label: "Emotions & Expressions" },
+        { key: "confidence", label: "Confidence" },
+        { key: "body_language", label: "Body Language" },
+        { key: "delivery", label: "Delivery" },
+        { key: "voice", label: "Voice Quality" },
+        { key: "timing", label: "Timing & Pacing" },
+        { key: "lip_sync", label: "Lip Sync & Synchronization" },
+      ];
+      
+      dimensions.forEach(dim => {
+        const section = (data.multimodal as any)[dim.key];
+        if (section) {
+          rows.push([dim.label, `Score: ${section.score?.toFixed(1) || "N/A"}/10`]);
+          if (section.notes) {
+            rows.push(["", `Notes: ${section.notes}`]);
+          }
+          if (Array.isArray(section.suggestions) && section.suggestions.length > 0) {
+            section.suggestions.forEach((s: string) => {
+              rows.push(["", `  - ${s}`]);
+            });
+          }
+          rows.push(["", ""]);
+        }
+      });
+      
+      if (Array.isArray(data.multimodal.top_improvements) && data.multimodal.top_improvements.length > 0) {
+        rows.push(["Top Multimodal Improvements", ""]);
+        data.multimodal.top_improvements.forEach((tip, idx) => {
+          rows.push([`${idx + 1}.`, tip]);
+        });
+        rows.push(["", ""]);
+      }
+    }
+
+    rows.push(["Questions & Answers", ""]);
 
     if (interview.questions && interview.questions.length > 0) {
       interview.questions.forEach((q, idx) => {
@@ -270,6 +316,46 @@ export default function ResultsPage() {
             ${!data.improvements?.length ? "<li>No improvements listed.</li>" : ""}
           </ul>
           
+          ${data.multimodal ? `
+          <h2>Multimodal Analysis</h2>
+          <div class="meta">
+            <p><strong>Overall Multimodal Score:</strong> ${data.multimodal.overall_score?.toFixed(1) || "N/A"}/10</p>
+          </div>
+          <div class="feedback" style="margin-bottom: 30px;">
+            ${Object.entries({
+              emotions: "Emotions & Expressions",
+              confidence: "Confidence",
+              body_language: "Body Language",
+              delivery: "Delivery",
+              voice: "Voice Quality",
+              timing: "Timing & Pacing",
+              lip_sync: "Lip Sync & Synchronization"
+            }).map(([key, label]) => {
+              const section = (data.multimodal as any)[key];
+              if (!section) return "";
+              return `
+                <div style="margin: 15px 0; padding: 12px; background: #f9f9f9; border-left: 3px solid #0066FF; border-radius: 4px;">
+                  <p style="margin: 0 0 8px 0;"><strong>${label}:</strong> <span style="color: #0066FF; font-weight: bold;">${section.score?.toFixed(1) || "N/A"}/10</span></p>
+                  ${section.notes ? `<p style="font-size: 13px; color: #666; margin: 5px 0; line-height: 1.5;">${section.notes}</p>` : ""}
+                  ${Array.isArray(section.suggestions) && section.suggestions.length > 0 ? `
+                    <ul style="font-size: 12px; margin: 8px 0 0 0; padding-left: 20px; color: #555;">
+                      ${section.suggestions.map((s: string) => `<li style="margin: 4px 0;">${s}</li>`).join("")}
+                    </ul>
+                  ` : ""}
+                </div>
+              `;
+            }).join("")}
+            ${Array.isArray(data.multimodal.top_improvements) && data.multimodal.top_improvements.length > 0 ? `
+              <div style="margin-top: 20px; padding: 12px; background: #e8f4f8; border-radius: 4px;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #0066FF;">Top Multimodal Improvements:</p>
+                <ul style="font-size: 13px; margin: 0; padding-left: 20px; color: #555;">
+                  ${data.multimodal.top_improvements.map((tip: string) => `<li style="margin: 6px 0;">${tip}</li>`).join("")}
+                </ul>
+              </div>
+            ` : ""}
+          </div>
+          ` : ""}
+          
           <h2>Questions & Answers</h2>
           ${questionsHtml}
           
@@ -321,11 +407,13 @@ export default function ResultsPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { key: "delivery", label: "Delivery" },
-                  { key: "voice", label: "Voice" },
+                  { key: "emotions", label: "Emotions & Expressions" },
                   { key: "confidence", label: "Confidence" },
-                  { key: "timing", label: "Timing" },
                   { key: "body_language", label: "Body Language" },
+                  { key: "delivery", label: "Delivery" },
+                  { key: "voice", label: "Voice Quality" },
+                  { key: "timing", label: "Timing & Pacing" },
+                  { key: "lip_sync", label: "Lip Sync & Sync" },
                 ].map((item) => {
                   const section = (data.multimodal as any)[item.key];
                   return (

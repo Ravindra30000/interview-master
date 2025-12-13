@@ -82,6 +82,8 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   const chunksRef = useRef<BlobPart[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const transcriptRef = useRef<string>(""); // Use ref to always have current transcript value
+  const accumulatedTranscriptRef = useRef<string>(""); // Accumulated final transcript across all sessions
+  const lastResultIndexRef = useRef<number>(0); // Track last processed result index
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -121,45 +123,153 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
+    
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let text = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
+      let finalText = "";
+      let interimText = "";
+      
+      // Process ALL results from the beginning to ensure we capture everything
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        const confidence = result[0].confidence || 0.5; // Default confidence if not provided
+        const isFinal = result.isFinal;
+        
+        // Filter low-confidence results (unless they're final)
+        if (confidence > 0.3 || isFinal) {
+          if (isFinal) {
+            // Final results: add to accumulated transcript with proper spacing
+            finalText += transcript + " ";
+          } else {
+            // Interim results: show as temporary text
+            interimText += transcript;
+          }
+        }
       }
-      setTranscript(text);
-      transcriptRef.current = text; // Keep ref in sync with state
+      
+      // Update accumulated transcript with final results
+      if (finalText.trim()) {
+        accumulatedTranscriptRef.current += finalText;
+        lastResultIndexRef.current = event.results.length;
+      }
+      
+      // Combine: accumulated final transcript + new interim text
+      const fullTranscript = accumulatedTranscriptRef.current.trim() + (interimText ? " " + interimText : "");
+      
+      setTranscript(fullTranscript);
+      transcriptRef.current = fullTranscript;
     };
-    recognition.onerror = () => {
-      setSttAvailable(false);
-      // Do not block recording if STT fails
+    
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      const errorType = event.error;
+      
+      // Handle different error types
+      if (errorType === "no-speech") {
+        // Not an error - just no speech detected yet
+        return;
+      }
+      
+      if (errorType === "audio-capture") {
+        setError("Microphone not accessible. Please check your microphone permissions and settings.");
+        setSttAvailable(false);
+      } else if (errorType === "not-allowed") {
+        setError("Microphone permission denied. Please allow microphone access in your browser settings.");
+        setSttAvailable(false);
+      } else if (errorType === "network") {
+        console.warn("Speech recognition network error - will retry");
+        // Try to restart if still recording
+        if (recording && recognitionRef.current) {
+          setTimeout(() => {
+            try {
+              if (recognitionRef.current && recording) {
+                recognitionRef.current.start();
+              }
+            } catch (e) {
+              // Ignore restart errors
+            }
+          }, 1000);
+        }
+      } else {
+        console.warn("Speech recognition error:", errorType);
+        // For other errors, try to continue if still recording
+        if (recording && recognitionRef.current) {
+          setTimeout(() => {
+            try {
+              if (recognitionRef.current && recording) {
+                recognitionRef.current.start();
+              }
+            } catch (e) {
+              // Ignore restart errors
+            }
+          }, 500);
+        }
+      }
     };
+    
     recognition.onend = () => {
-      // Ensure we capture any final transcript before clearing
-      if (recognitionRef.current) {
-        // The transcript state should already be updated, but ensure ref is synced
-        transcriptRef.current = transcript;
+      // If still recording, automatically restart recognition
+      // This handles cases where recognition stops unexpectedly
+      if (recording && recognitionRef.current) {
+        try {
+          // Small delay before restart to avoid immediate restart issues
+          setTimeout(() => {
+            if (recording && recognitionRef.current) {
+              recognitionRef.current.start();
+            }
+          }, 100);
+        } catch (e) {
+          // Recognition might have been stopped intentionally
+          recognitionRef.current = null;
+        }
+      } else {
+        recognitionRef.current = null;
       }
-      recognitionRef.current = null;
     };
+    
     recognitionRef.current = recognition;
-    recognition.start();
+    
+    try {
+      recognition.start();
+    } catch (err: any) {
+      console.warn("Failed to start speech recognition:", err);
+      setSttAvailable(false);
+    }
   };
 
   const stopSpeechRecognition = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore errors when stopping
+      }
+      // Don't clear accumulatedTranscriptRef - preserve transcript across pause/resume
       recognitionRef.current = null;
     }
   };
 
   const startRecording = async () => {
     setError(null);
+    // Reset transcript when starting a NEW recording
+    // This ensures clean start for each new recording session
     setTranscript("");
-    transcriptRef.current = ""; // Reset ref as well
+    transcriptRef.current = "";
+    accumulatedTranscriptRef.current = ""; // Reset accumulated transcript for new recording
+    lastResultIndexRef.current = 0;
     setTimer(0);
     setExpired(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      // Request better audio quality for improved transcription accuracy
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100, // Higher sample rate for better quality
+          channelCount: 1, // Mono is sufficient for speech
+        }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -245,7 +355,9 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   const resetCurrent = () => {
     stopRecording();
     setTranscript("");
-    transcriptRef.current = ""; // Reset ref as well
+    transcriptRef.current = "";
+    accumulatedTranscriptRef.current = ""; // Reset accumulated transcript
+    lastResultIndexRef.current = 0;
     setTimer(0);
     setExpired(false);
     setFileSize(null);

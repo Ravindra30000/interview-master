@@ -49,11 +49,13 @@ export interface Interview {
   };
   multimodalAnalysis?: {
     overall_score: number;
+    emotions: { score: number; notes: string; suggestions: string[] };
+    confidence: { score: number; notes: string; suggestions: string[] };
+    body_language: { score: number; notes: string; suggestions: string[] };
     delivery: { score: number; notes: string; suggestions: string[] };
     voice: { score: number; notes: string; suggestions: string[] };
-    confidence: { score: number; notes: string; suggestions: string[] };
     timing: { score: number; notes: string; suggestions: string[] };
-    body_language: { score: number; notes: string; suggestions: string[] };
+    lip_sync: { score: number; notes: string; suggestions: string[] };
     top_improvements: string[];
   };
   questions?: Array<{

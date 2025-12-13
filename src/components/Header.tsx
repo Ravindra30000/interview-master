@@ -53,6 +53,9 @@ export default function Header() {
               <Link href="/profile" className="hover:text-gray-900">
                 Profile
               </Link>
+              <Link href="/cleanup" className="hover:text-gray-900">
+                Cleanup
+              </Link>
             </>
           )}
           {user ? (

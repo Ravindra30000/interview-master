@@ -290,6 +290,22 @@ export default function DashboardPage() {
             )}
           </section>
 
+          {/* Cleanup Tool */}
+          <section className="bg-white border border-red-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-gray-900">🗑️ Cleanup Old Interviews</h3>
+              <Link
+                href="/cleanup"
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition"
+              >
+                Open Cleanup Tool
+              </Link>
+            </div>
+            <p className="text-sm text-gray-600">
+              Delete interviews without multimodal analysis to free up storage space. This will permanently delete videos and interview data.
+            </p>
+          </section>
+
           {/* Filters and Search */}
           <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
