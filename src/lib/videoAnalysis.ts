@@ -61,16 +61,22 @@ export async function uploadVideoToGemini(
  * Delete uploaded file from Gemini File API
  * @param genAI - GoogleGenerativeAI instance
  * @param fileUri - File URI to delete
+ * 
+ * Note: Currently not implemented as we use inline video data instead of File API.
+ * This function is kept for compatibility but does nothing.
  */
 export async function cleanupGeminiFile(
   genAI: GoogleGenerativeAI,
   fileUri: string
 ): Promise<void> {
   try {
-    // Extract file name from URI
-    const fileName = fileUri.split("/").pop();
-    if (fileName) {
-      await genAI.deleteFile(fileName);
+    // File API is not currently used - we use inline video data
+    // If File API is needed in the future, implement using REST API:
+    // DELETE https://generativelanguage.googleapis.com/v1beta/files/{fileName}?key={apiKey}
+    
+    // For now, this is a no-op since we don't use File API
+    if (process.env.NODE_ENV === "development") {
+      console.log("[videoAnalysis] File cleanup skipped - using inline video data");
     }
   } catch (error: any) {
     // Don't throw - cleanup is not critical
