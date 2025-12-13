@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { uploadVideoToGemini, cleanupGeminiFile, prepareVideoForGemini } from "@/lib/videoAnalysis";
+import { cleanupGeminiFile, prepareVideoForGemini } from "@/lib/videoAnalysis";
 
 interface RequestBody {
   transcript: string;
