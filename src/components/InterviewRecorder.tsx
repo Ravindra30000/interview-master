@@ -85,6 +85,9 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   const accumulatedTranscriptRef = useRef<string>(""); // Accumulated final transcript across all sessions
   const lastResultIndexRef = useRef<number>(0); // Track last processed result index
   const isRecordingActiveRef = useRef<boolean>(false); // Track if recording is actually active (prevents race conditions)
+  const lastFinalTranscriptRef = useRef<string>(""); // Track last final transcript to detect duplicates
+  const interimTextRef = useRef<string>(""); // Track interim text separately
+  const lastProcessTimeRef = useRef<number>(0); // Rate limiting for processing results
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -131,8 +134,15 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
         return; // Ignore results when paused/stopped
       }
       
+      // Rate limiting: don't process too frequently (max once per 100ms)
+      const now = Date.now();
+      if (now - lastProcessTimeRef.current < 100) {
+        return; // Skip if processing too frequently
+      }
+      lastProcessTimeRef.current = now;
+      
       let finalText = "";
-      let interimText = "";
+      let newInterimText = "";
       
       // Process results, but only accept high-confidence or final results
       for (let i = 0; i < event.results.length; i++) {
@@ -141,29 +151,64 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
         const confidence = result[0].confidence || 0.5;
         const isFinal = result.isFinal;
         
-        // Only accept results with reasonable confidence (filter out noise/unknown words)
-        // For final results, use lower threshold; for interim, require higher confidence
-        const minConfidence = isFinal ? 0.4 : 0.6;
+        // Stricter confidence thresholds to filter out noise and unknown words
+        // For final results, require higher confidence; for interim, require very high confidence
+        const minConfidence = isFinal ? 0.5 : 0.7;
         
-        if (transcript && confidence >= minConfidence) {
+        // Only process if transcript is meaningful (not empty, not just whitespace)
+        if (transcript && transcript.length > 0 && confidence >= minConfidence) {
+          // Additional check: filter out very short transcripts that are likely noise
+          if (transcript.length < 2 && !isFinal) {
+            continue; // Skip very short interim results
+          }
+          
           if (isFinal) {
-            // Final results: add to accumulated transcript with proper spacing
-            finalText += transcript + " ";
+            // Check for duplicates: don't add if this final text is the same as the last one
+            const normalizedText = transcript.toLowerCase().trim();
+            const lastNormalized = lastFinalTranscriptRef.current.toLowerCase().trim();
+            
+            // Skip if it's exactly the same as the last final result
+            if (normalizedText && normalizedText !== lastNormalized) {
+              // Check if this text is already in the accumulated transcript (prevent repetition)
+              const currentAccumulated = accumulatedTranscriptRef.current.toLowerCase();
+              
+              // More aggressive duplicate detection:
+              // 1. Check if the exact phrase already exists
+              // 2. Check if it's a substring that appears multiple times (likely a repeat)
+              const phraseCount = (currentAccumulated.match(new RegExp(normalizedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+              
+              // Only add if:
+              // - It's a new phrase (not in transcript), OR
+              // - It's a longer phrase (>30 chars) that might be legitimate repetition, OR
+              // - It hasn't appeared more than once already
+              if (phraseCount === 0 || (normalizedText.length > 30 && phraseCount < 2)) {
+                finalText += transcript + " ";
+                lastFinalTranscriptRef.current = transcript;
+              } else {
+                // Skip duplicate - already in transcript
+                console.log("[STT] Skipping duplicate phrase:", transcript.substring(0, 50));
+              }
+            }
           } else {
-            // Interim results: only show if high confidence (reduces "unknown words")
-            interimText += transcript;
+            // Interim results: only show if very high confidence and meaningful
+            if (transcript.length >= 3 && confidence >= 0.7) {
+              newInterimText = transcript; // Replace interim text, don't accumulate
+            }
           }
         }
       }
       
-      // Update accumulated transcript with final results only
+      // Update accumulated transcript with final results only (no duplicates)
       if (finalText.trim()) {
         accumulatedTranscriptRef.current += finalText;
         lastResultIndexRef.current = event.results.length;
       }
       
-      // Combine: accumulated final transcript + new interim text (only if recording)
-      const fullTranscript = accumulatedTranscriptRef.current.trim() + (interimText ? " " + interimText : "");
+      // Update interim text separately (don't accumulate, just replace)
+      interimTextRef.current = newInterimText;
+      
+      // Combine: accumulated final transcript + current interim text (not accumulated)
+      const fullTranscript = accumulatedTranscriptRef.current.trim() + (interimTextRef.current ? " " + interimTextRef.current : "");
       
       setTranscript(fullTranscript);
       transcriptRef.current = fullTranscript;
@@ -259,8 +304,10 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
       recognitionRef.current = null;
     }
     
-    // Clear any interim results from the display (keep only final transcript)
+    // Clear any interim results and duplicates from the display (keep only final transcript)
     const finalOnly = accumulatedTranscriptRef.current.trim();
+    interimTextRef.current = "";
+    lastFinalTranscriptRef.current = "";
     setTranscript(finalOnly);
     transcriptRef.current = finalOnly;
   };
@@ -273,6 +320,9 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     transcriptRef.current = "";
     accumulatedTranscriptRef.current = ""; // Reset accumulated transcript for new recording
     lastResultIndexRef.current = 0;
+    lastFinalTranscriptRef.current = ""; // Reset last final transcript
+    interimTextRef.current = ""; // Reset interim text
+    lastProcessTimeRef.current = 0; // Reset rate limiting
     setTimer(0);
     setExpired(false);
     try {
@@ -387,6 +437,9 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     transcriptRef.current = "";
     accumulatedTranscriptRef.current = ""; // Reset accumulated transcript
     lastResultIndexRef.current = 0;
+    lastFinalTranscriptRef.current = ""; // Reset last final transcript
+    interimTextRef.current = ""; // Reset interim text
+    lastProcessTimeRef.current = 0; // Reset rate limiting
     setTimer(0);
     setExpired(false);
     setFileSize(null);
