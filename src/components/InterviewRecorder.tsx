@@ -84,6 +84,7 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   const transcriptRef = useRef<string>(""); // Use ref to always have current transcript value
   const accumulatedTranscriptRef = useRef<string>(""); // Accumulated final transcript across all sessions
   const lastResultIndexRef = useRef<number>(0); // Track last processed result index
+  const isRecordingActiveRef = useRef<boolean>(false); // Track if recording is actually active (prevents race conditions)
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -125,35 +126,43 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     recognition.lang = "en-US";
     
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      // Only process results if recording is actually active
+      if (!isRecordingActiveRef.current) {
+        return; // Ignore results when paused/stopped
+      }
+      
       let finalText = "";
       let interimText = "";
       
-      // Process ALL results from the beginning to ensure we capture everything
+      // Process results, but only accept high-confidence or final results
       for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i];
-        const transcript = result[0].transcript;
-        const confidence = result[0].confidence || 0.5; // Default confidence if not provided
+        const transcript = result[0].transcript.trim();
+        const confidence = result[0].confidence || 0.5;
         const isFinal = result.isFinal;
         
-        // Filter low-confidence results (unless they're final)
-        if (confidence > 0.3 || isFinal) {
+        // Only accept results with reasonable confidence (filter out noise/unknown words)
+        // For final results, use lower threshold; for interim, require higher confidence
+        const minConfidence = isFinal ? 0.4 : 0.6;
+        
+        if (transcript && confidence >= minConfidence) {
           if (isFinal) {
             // Final results: add to accumulated transcript with proper spacing
             finalText += transcript + " ";
           } else {
-            // Interim results: show as temporary text
+            // Interim results: only show if high confidence (reduces "unknown words")
             interimText += transcript;
           }
         }
       }
       
-      // Update accumulated transcript with final results
+      // Update accumulated transcript with final results only
       if (finalText.trim()) {
         accumulatedTranscriptRef.current += finalText;
         lastResultIndexRef.current = event.results.length;
       }
       
-      // Combine: accumulated final transcript + new interim text
+      // Combine: accumulated final transcript + new interim text (only if recording)
       const fullTranscript = accumulatedTranscriptRef.current.trim() + (interimText ? " " + interimText : "");
       
       setTranscript(fullTranscript);
@@ -178,10 +187,10 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
       } else if (errorType === "network") {
         console.warn("Speech recognition network error - will retry");
         // Try to restart if still recording
-        if (recording && recognitionRef.current) {
+        if (isRecordingActiveRef.current && recognitionRef.current) {
           setTimeout(() => {
             try {
-              if (recognitionRef.current && recording) {
+              if (recognitionRef.current && isRecordingActiveRef.current) {
                 recognitionRef.current.start();
               }
             } catch (e) {
@@ -192,10 +201,10 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
       } else {
         console.warn("Speech recognition error:", errorType);
         // For other errors, try to continue if still recording
-        if (recording && recognitionRef.current) {
+        if (isRecordingActiveRef.current && recognitionRef.current) {
           setTimeout(() => {
             try {
-              if (recognitionRef.current && recording) {
+              if (recognitionRef.current && isRecordingActiveRef.current) {
                 recognitionRef.current.start();
               }
             } catch (e) {
@@ -207,13 +216,13 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     };
     
     recognition.onend = () => {
-      // If still recording, automatically restart recognition
-      // This handles cases where recognition stops unexpectedly
-      if (recording && recognitionRef.current) {
+      // Only restart if recording is actually active (not paused)
+      if (isRecordingActiveRef.current && recognitionRef.current) {
         try {
           // Small delay before restart to avoid immediate restart issues
           setTimeout(() => {
-            if (recording && recognitionRef.current) {
+            // Double-check recording is still active before restarting
+            if (isRecordingActiveRef.current && recognitionRef.current) {
               recognitionRef.current.start();
             }
           }, 100);
@@ -222,6 +231,7 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
           recognitionRef.current = null;
         }
       } else {
+        // Recording is paused/stopped, don't restart
         recognitionRef.current = null;
       }
     };
@@ -237,15 +247,22 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
   };
 
   const stopSpeechRecognition = () => {
+    // Mark recording as inactive immediately to prevent processing new results
+    isRecordingActiveRef.current = false;
+    
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch (e) {
         // Ignore errors when stopping
       }
-      // Don't clear accumulatedTranscriptRef - preserve transcript across pause/resume
       recognitionRef.current = null;
     }
+    
+    // Clear any interim results from the display (keep only final transcript)
+    const finalOnly = accumulatedTranscriptRef.current.trim();
+    setTranscript(finalOnly);
+    transcriptRef.current = finalOnly;
   };
 
   const startRecording = async () => {
@@ -338,6 +355,9 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
       };
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
+      
+      // Mark recording as active before starting speech recognition
+      isRecordingActiveRef.current = true;
       startSpeechRecognition();
       setRecording(true);
     } catch (err: any) {
@@ -347,13 +367,22 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
 
   const stopRecording = () => {
     if (!recording) return;
+    
+    // Mark as inactive immediately to stop processing new transcription
+    isRecordingActiveRef.current = false;
     setRecording(false);
+    
+    // Stop media recorder
     mediaRecorderRef.current?.stop();
+    
+    // Stop speech recognition (will clear interim results)
     stopSpeechRecognition();
   };
 
   const resetCurrent = () => {
     stopRecording();
+    // Ensure recording is marked as inactive
+    isRecordingActiveRef.current = false;
     setTranscript("");
     transcriptRef.current = "";
     accumulatedTranscriptRef.current = ""; // Reset accumulated transcript
