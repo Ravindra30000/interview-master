@@ -18,10 +18,10 @@ const MAX_FILE_API_BYTES = 20 * 1024 * 1024; // 20MB for File API
 // Prioritize available models for full multimodal video analysis
 // Based on API availability: gemini-3-pro-preview and gemini-2.5-flash are confirmed working
 const MULTIMODAL_MODELS = [
-  "gemini-3-pro-preview",    // Primary - preview version (available in account, supports multimodal)
-  "gemini-2.5-flash",        // Fallback - confirmed working, supports multimodal
-  "gemini-2.5-pro",          // Alternative fallback - also available
-  "gemini-1.5-pro",          // Last resort
+  "gemini-3-pro-preview", // Primary - preview version (available in account, supports multimodal)
+  "gemini-2.5-flash", // Fallback - confirmed working, supports multimodal
+  "gemini-2.5-pro", // Alternative fallback - also available
+  "gemini-1.5-pro", // Last resort
 ];
 
 function wait(ms: number) {
@@ -36,10 +36,13 @@ export async function POST(
     const { id } = await params;
     const body = (await req.json()) as RequestBody;
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       console.error("Missing Gemini API key");
-      return NextResponse.json({ error: "Missing Gemini API key" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Missing Gemini API key" },
+        { status: 500 }
+      );
     }
 
     if (!body.transcript || !body.question) {
@@ -50,7 +53,7 @@ export async function POST(
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    
+
     if (process.env.NODE_ENV === "development") {
       console.log("[analyze] request received", {
         hasTranscript: !!body.transcript,
@@ -101,7 +104,7 @@ export async function POST(
           console.warn("[analyze] video too large, skipping video analysis", {
             size: preparation.size,
             sizeMB: (preparation.size / 1024 / 1024).toFixed(2),
-            maxSizeMB: (20 * 1024 * 1024 / 1024 / 1024).toFixed(0),
+            maxSizeMB: ((20 * 1024 * 1024) / 1024 / 1024).toFixed(0),
           });
           // Continue without video - will analyze transcript only
         }
@@ -112,8 +115,9 @@ export async function POST(
       }
     }
 
-    const videoHint = hasVideo && videoPart
-      ? `VIDEO ANALYSIS AVAILABLE: A video recording of the interview answer is provided. Analyze the video comprehensively for:
+    const videoHint =
+      hasVideo && videoPart
+        ? `VIDEO ANALYSIS AVAILABLE: A video recording of the interview answer is provided. Analyze the video comprehensively for:
 - Facial expressions and emotions (confidence, nervousness, enthusiasm, authenticity)
 - Body language (posture, gestures, positioning, eye contact)
 - Voice delivery (pace, clarity, volume, articulation, tone variation)
@@ -123,7 +127,7 @@ export async function POST(
 - Professional presentation (appearance, environment, lighting)
 
 Provide detailed analysis of all these aspects in your multimodal response.`
-      : `NO VIDEO PROVIDED: Only transcript is available. Infer delivery and speaking style from the transcript text only. Note in your analysis that video was not available.`;
+        : `NO VIDEO PROVIDED: Only transcript is available. Infer delivery and speaking style from the transcript text only. Note in your analysis that video was not available.`;
 
     // Select a multimodal-capable model with fallbacks
     let model = null;
@@ -281,12 +285,12 @@ CRITICAL RULES:
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         const parts: any[] = [];
-        
+
         // Add video part if available (inline or File API)
         if (videoPart) {
           parts.push(videoPart);
         }
-        
+
         // Add text prompt
         parts.push({ text: prompt });
 
@@ -294,7 +298,11 @@ CRITICAL RULES:
           console.log("[analyze] sending to Gemini", {
             model: selectedModel,
             hasVideo: !!videoPart,
-            videoMethod: videoPart ? (videoPart.inlineData ? "inline" : "file_api") : "none",
+            videoMethod: videoPart
+              ? videoPart.inlineData
+                ? "inline"
+                : "file_api"
+              : "none",
             partsCount: parts.length,
           });
         }
@@ -323,7 +331,10 @@ CRITICAL RULES:
         if (isServiceDisabled) {
           console.error("Gemini service disabled or not activated:", msg);
           return NextResponse.json(
-            { error: "Gemini API not enabled for this project. Please enable it in Google Cloud." },
+            {
+              error:
+                "Gemini API not enabled for this project. Please enable it in Google Cloud.",
+            },
             { status: 503 }
           );
         }
@@ -349,42 +360,52 @@ CRITICAL RULES:
     const text = result.response.text();
 
     if (process.env.NODE_ENV === "development") {
-      console.log("[analyze] raw response text (truncated)", text.slice(0, 400));
+      console.log(
+        "[analyze] raw response text (truncated)",
+        text.slice(0, 400)
+      );
       console.log("[analyze] full response text length:", text.length);
       console.log("[analyze] response starts with:", text.substring(0, 50));
-      console.log("[analyze] response ends with:", text.substring(Math.max(0, text.length - 50)));
+      console.log(
+        "[analyze] response ends with:",
+        text.substring(Math.max(0, text.length - 50))
+      );
     }
 
     let parsed;
     try {
       // Strip markdown code blocks if present (Gemini often wraps JSON in ```json ... ```)
       let cleanedText = text.trim();
-      
+
       // Remove opening markdown code block
       if (cleanedText.startsWith("```json")) {
         cleanedText = cleanedText.replace(/^```json\s*/i, "");
       } else if (cleanedText.startsWith("```")) {
         cleanedText = cleanedText.replace(/^```\s*/, "");
       }
-      
+
       // Remove closing markdown code block
       if (cleanedText.endsWith("```")) {
         cleanedText = cleanedText.replace(/\s*```$/g, "");
       }
-      
+
       // Trim again after removing markdown
       cleanedText = cleanedText.trim();
-      
+
       if (process.env.NODE_ENV === "development") {
-        console.log("[analyze] cleaned text starts with:", cleanedText.substring(0, 50));
+        console.log(
+          "[analyze] cleaned text starts with:",
+          cleanedText.substring(0, 50)
+        );
       }
-      
+
       parsed = JSON.parse(cleanedText);
     } catch (e: any) {
       // Fallback to legacy parsing if JSON is not returned
       const scoreMatch = text.match(/SCORE:\s*(\d+(?:\.\d+)?)/);
       const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]*?)IMPROVEMENTS:/);
-      const improvementsText = text.match(/IMPROVEMENTS:([\s\S]*?)$/)?.[1] || "";
+      const improvementsText =
+        text.match(/IMPROVEMENTS:([\s\S]*?)$/)?.[1] || "";
 
       const legacy = {
         score: parseFloat(scoreMatch?.[1] || "5"),
@@ -408,31 +429,62 @@ CRITICAL RULES:
 
     // Normalize parsed response and ensure multimodal structure
     const multimodal = parsed.multimodal || null;
-    
+
     if (process.env.NODE_ENV === "development") {
       console.log("[analyze] parsed response has multimodal:", !!multimodal);
       if (multimodal) {
         console.log("[analyze] multimodal keys:", Object.keys(multimodal));
       }
     }
-    
+
     // Ensure multimodal has all required fields
     let normalizedMultimodal = null;
     if (multimodal) {
       normalizedMultimodal = {
-        overall_score: typeof multimodal.overall_score === "number" ? multimodal.overall_score : parsed.score || 5,
-        emotions: multimodal.emotions || { score: 5, notes: "Not analyzed", suggestions: [] },
-        confidence: multimodal.confidence || { score: 5, notes: "Not analyzed", suggestions: [] },
-        body_language: multimodal.body_language || { score: 5, notes: "Not analyzed", suggestions: [] },
-        delivery: multimodal.delivery || { score: 5, notes: "Not analyzed", suggestions: [] },
-        voice: multimodal.voice || { score: 5, notes: "Not analyzed", suggestions: [] },
-        timing: multimodal.timing || { score: 5, notes: "Not analyzed", suggestions: [] },
-        lip_sync: multimodal.lip_sync || { score: 5, notes: "Not analyzed", suggestions: [] },
-        top_improvements: Array.isArray(multimodal.top_improvements) 
+        overall_score:
+          typeof multimodal.overall_score === "number"
+            ? multimodal.overall_score
+            : parsed.score || 5,
+        emotions: multimodal.emotions || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        confidence: multimodal.confidence || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        body_language: multimodal.body_language || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        delivery: multimodal.delivery || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        voice: multimodal.voice || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        timing: multimodal.timing || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        lip_sync: multimodal.lip_sync || {
+          score: 5,
+          notes: "Not analyzed",
+          suggestions: [],
+        },
+        top_improvements: Array.isArray(multimodal.top_improvements)
           ? multimodal.top_improvements.slice(0, 3)
           : parsed.improvements?.slice(0, 3) || [],
       };
-      
+
       if (process.env.NODE_ENV === "development") {
         console.log("[analyze] normalized multimodal structure:", {
           hasEmotions: !!normalizedMultimodal.emotions,
@@ -444,7 +496,9 @@ CRITICAL RULES:
     } else if (hasVideo && videoPart) {
       // If video was sent but no multimodal data returned, log warning
       if (process.env.NODE_ENV === "development") {
-        console.warn("[analyze] Video was sent but no multimodal data in response. Model may not have analyzed video.");
+        console.warn(
+          "[analyze] Video was sent but no multimodal data in response. Model may not have analyzed video."
+        );
       }
     }
 
@@ -453,7 +507,11 @@ CRITICAL RULES:
       feedback: parsed.feedback || "Good effort! Keep practicing.",
       improvements: Array.isArray(parsed.improvements)
         ? parsed.improvements.slice(0, 3)
-        : ["Practice speaking more confidently", "Use specific examples", "Improve structure"],
+        : [
+            "Practice speaking more confidently",
+            "Use specific examples",
+            "Improve structure",
+          ],
       multimodal: normalizedMultimodal,
     };
 
@@ -466,14 +524,19 @@ CRITICAL RULES:
         }
       } catch (cleanupErr: any) {
         // Non-critical - just log
-        console.warn("[analyze] file cleanup failed", cleanupErr?.message || cleanupErr);
+        console.warn(
+          "[analyze] file cleanup failed",
+          cleanupErr?.message || cleanupErr
+        );
       }
     }
 
     if (process.env.NODE_ENV === "development") {
       console.log("[analyze] response normalized", {
         hasMultimodal: !!response.multimodal,
-        multimodalKeys: response.multimodal ? Object.keys(response.multimodal) : [],
+        multimodalKeys: response.multimodal
+          ? Object.keys(response.multimodal)
+          : [],
         improvementsCount: response.improvements.length,
         score: response.score,
       });
@@ -488,12 +551,12 @@ CRITICAL RULES:
       name: err?.name,
     });
     return NextResponse.json(
-      { 
+      {
         error: err?.message || "Analysis failed",
-        details: process.env.NODE_ENV === "development" ? err?.stack : undefined
+        details:
+          process.env.NODE_ENV === "development" ? err?.stack : undefined,
       },
       { status: 500 }
     );
   }
 }
-
