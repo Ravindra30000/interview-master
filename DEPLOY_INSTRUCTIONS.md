@@ -2,8 +2,9 @@
 
 ## Prerequisites
 - Code pushed to GitHub ✅
-- Google Cloud project: `interview-master-d8c6f`
+- Google Cloud project ID (you'll set this via environment variable)
 - Google Cloud Shell access
+- All Firebase and Gemini credentials ready (as environment variables)
 
 ## Step-by-Step Deployment
 
@@ -19,9 +20,21 @@
    cd interview-master
    ```
 
-3. **Set the project**
+3. **Set environment variables** (REQUIRED - replace with your actual values)
    ```bash
-   gcloud config set project interview-master-d8c6f
+   export FIREBASE_API_KEY="your-firebase-api-key"
+   export FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+   export FIREBASE_PROJECT_ID="your-project-id"
+   export FIREBASE_STORAGE_BUCKET="your-bucket.appspot.com"
+   export FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+   export FIREBASE_APP_ID="your-app-id"
+   export GEMINI_API_KEY="your-gemini-api-key"
+   export GCLOUD_PROJECT_ID="your-gcloud-project-id"
+   ```
+
+4. **Set the project**
+   ```bash
+   gcloud config set project $GCLOUD_PROJECT_ID
    ```
 
 4. **Build and deploy using the script**
@@ -30,17 +43,27 @@
    ./deploy-cloud-run.sh
    ```
 
-   OR manually run the commands:
+   OR manually run the commands (after setting environment variables):
 
    ```bash
+   # First, set all required environment variables
+   export FIREBASE_API_KEY="your-firebase-api-key"
+   export FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+   export FIREBASE_PROJECT_ID="your-project-id"
+   export FIREBASE_STORAGE_BUCKET="your-bucket.appspot.com"
+   export FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+   export FIREBASE_APP_ID="your-app-id"
+   export GEMINI_API_KEY="your-gemini-api-key"
+   export GCLOUD_PROJECT_ID="your-gcloud-project-id"
+
    # Build Docker image
    gcloud builds submit \
      --config=cloudbuild.yaml \
-     --substitutions=_FIREBASE_API_KEY="AIzaSyD8JAG1wmstFYNiflCSAhdSBFPTZPtbeOo",_FIREBASE_AUTH_DOMAIN="interview-master-d8c6f.firebaseapp.com",_FIREBASE_PROJECT_ID="interview-master-d8c6f",_FIREBASE_STORAGE_BUCKET="interview-master-d8c6f.firebasestorage.app",_FIREBASE_MESSAGING_SENDER_ID="921696971578",_FIREBASE_APP_ID="1:921696971578:web:c252b8b7683e8e69893e03",_GEMINI_API_KEY="AIzaSyBJCuxWYzP9_Xe5Ugv9avBrDRzWnAlYCdQ"
+     --substitutions=_FIREBASE_API_KEY="$FIREBASE_API_KEY",_FIREBASE_AUTH_DOMAIN="$FIREBASE_AUTH_DOMAIN",_FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID",_FIREBASE_STORAGE_BUCKET="$FIREBASE_STORAGE_BUCKET",_FIREBASE_MESSAGING_SENDER_ID="$FIREBASE_MESSAGING_SENDER_ID",_FIREBASE_APP_ID="$FIREBASE_APP_ID",_GEMINI_API_KEY="$GEMINI_API_KEY"
 
    # Deploy to Cloud Run
    gcloud run deploy interview-master \
-     --image gcr.io/interview-master-d8c6f/interview-master:latest \
+     --image gcr.io/$GCLOUD_PROJECT_ID/interview-master:latest \
      --platform managed \
      --region us-central1 \
      --allow-unauthenticated \
@@ -62,21 +85,45 @@
    cd C:\Users\91999\Desktop\interview-master
    ```
 
-2. **Set the project**
+2. **Set environment variables** (REQUIRED - replace with your actual values)
    ```powershell
-   gcloud config set project interview-master-d8c6f
+   $env:FIREBASE_API_KEY="your-firebase-api-key"
+   $env:FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+   $env:FIREBASE_PROJECT_ID="your-project-id"
+   $env:FIREBASE_STORAGE_BUCKET="your-bucket.appspot.com"
+   $env:FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+   $env:FIREBASE_APP_ID="your-app-id"
+   $env:GEMINI_API_KEY="your-gemini-api-key"
+   $env:GCLOUD_PROJECT_ID="your-gcloud-project-id"
    ```
 
-3. **Build and deploy**
+3. **Set the project**
+   ```powershell
+   gcloud config set project $env:GCLOUD_PROJECT_ID
+   ```
+
+3. **Set environment variables** (PowerShell syntax)
+   ```powershell
+   $env:FIREBASE_API_KEY="your-firebase-api-key"
+   $env:FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
+   $env:FIREBASE_PROJECT_ID="your-project-id"
+   $env:FIREBASE_STORAGE_BUCKET="your-bucket.appspot.com"
+   $env:FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+   $env:FIREBASE_APP_ID="your-app-id"
+   $env:GEMINI_API_KEY="your-gemini-api-key"
+   $env:GCLOUD_PROJECT_ID="your-gcloud-project-id"
+   ```
+
+4. **Build and deploy**
    ```powershell
    # Build Docker image
    gcloud builds submit `
      --config=cloudbuild.yaml `
-     --substitutions=_FIREBASE_API_KEY="AIzaSyD8JAG1wmstFYNiflCSAhdSBFPTZPtbeOo",_FIREBASE_AUTH_DOMAIN="interview-master-d8c6f.firebaseapp.com",_FIREBASE_PROJECT_ID="interview-master-d8c6f",_FIREBASE_STORAGE_BUCKET="interview-master-d8c6f.firebasestorage.app",_FIREBASE_MESSAGING_SENDER_ID="921696971578",_FIREBASE_APP_ID="1:921696971578:web:c252b8b7683e8e69893e03",_GEMINI_API_KEY="AIzaSyBJCuxWYzP9_Xe5Ugv9avBrDRzWnAlYCdQ"
+     --substitutions=_FIREBASE_API_KEY="$env:FIREBASE_API_KEY",_FIREBASE_AUTH_DOMAIN="$env:FIREBASE_AUTH_DOMAIN",_FIREBASE_PROJECT_ID="$env:FIREBASE_PROJECT_ID",_FIREBASE_STORAGE_BUCKET="$env:FIREBASE_STORAGE_BUCKET",_FIREBASE_MESSAGING_SENDER_ID="$env:FIREBASE_MESSAGING_SENDER_ID",_FIREBASE_APP_ID="$env:FIREBASE_APP_ID",_GEMINI_API_KEY="$env:GEMINI_API_KEY"
 
    # Deploy to Cloud Run
    gcloud run deploy interview-master `
-     --image gcr.io/interview-master-d8c6f/interview-master:latest `
+     --image gcr.io/$env:GCLOUD_PROJECT_ID/interview-master:latest `
      --platform managed `
      --region us-central1 `
      --allow-unauthenticated `
@@ -110,8 +157,8 @@ After deployment, visit the service URL and verify:
 ### Deployment fails with permissions error
 - Ensure Cloud Build service account has necessary permissions:
   ```bash
-  PROJECT_NUMBER=$(gcloud projects describe interview-master-d8c6f --format='value(projectNumber)')
-  gcloud projects add-iam-policy-binding interview-master-d8c6f \
+  PROJECT_NUMBER=$(gcloud projects describe $GCLOUD_PROJECT_ID --format='value(projectNumber)')
+  gcloud projects add-iam-policy-binding $GCLOUD_PROJECT_ID \
     --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
     --role="roles/run.admin"
   ```

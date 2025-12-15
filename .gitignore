@@ -55,3 +55,11 @@ project-summary.md
 technical-spec.md
 ui-ux-design.md
 
+# Environment variable files (NEVER commit these)
+set-env.sh
+set-env.ps1
+*.env.local
+.env
+.env.production
+.env.development
+
