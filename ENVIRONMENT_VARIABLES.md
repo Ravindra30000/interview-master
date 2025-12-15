@@ -33,6 +33,7 @@ export SERVICE_NAME="interview-master"  # Default: interview-master
 ## Where to Find These Values
 
 ### Firebase Configuration
+
 1. Go to [Firebase Console](https://console.firebase.google.com)
 2. Select your project
 3. Go to Project Settings (gear icon)
@@ -47,11 +48,13 @@ export SERVICE_NAME="interview-master"  # Default: interview-master
    - `appId` → `FIREBASE_APP_ID`
 
 ### Google Cloud Project ID
+
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Your project ID is shown in the top bar
 3. Or run: `gcloud projects list`
 
 ### Gemini API Key
+
 1. Go to [Google AI Studio](https://aistudio.google.com)
 2. Click "Get API Key"
 3. Create or select an API key
@@ -80,6 +83,7 @@ echo $env:GCLOUD_PROJECT_ID
 ## Security Best Practices
 
 ✅ **DO:**
+
 - Set environment variables before running deployment scripts
 - Use separate API keys for development and production
 - Rotate API keys regularly
@@ -87,6 +91,7 @@ echo $env:GCLOUD_PROJECT_ID
 - Use secrets management in production (Cloud Run secrets, etc.)
 
 ❌ **DON'T:**
+
 - Hardcode credentials in files
 - Commit API keys to git
 - Share API keys in chat/email
@@ -114,6 +119,7 @@ export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 Then source it before deployment:
+
 ```bash
 source set-env.sh
 ```

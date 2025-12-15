@@ -1,6 +1,7 @@
 # Deployment Instructions for Google Cloud Run
 
 ## Prerequisites
+
 - Code pushed to GitHub ✅
 - Google Cloud project ID (you'll set this via environment variable)
 - Google Cloud Shell access
@@ -11,16 +12,19 @@
 ### Option 1: Using Google Cloud Shell (Recommended)
 
 1. **Open Google Cloud Shell**
+
    - Go to [Google Cloud Console](https://console.cloud.google.com)
    - Click the Cloud Shell icon (top right) or press `Ctrl+Shift+` (backtick)
 
 2. **Clone the repository**
+
    ```bash
    git clone https://github.com/Ravindra30000/interview-master.git
    cd interview-master
    ```
 
 3. **Set environment variables** (REQUIRED - replace with your actual values)
+
    ```bash
    export FIREBASE_API_KEY="your-firebase-api-key"
    export FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
@@ -33,11 +37,13 @@
    ```
 
 4. **Set the project**
+
    ```bash
    gcloud config set project $GCLOUD_PROJECT_ID
    ```
 
-4. **Build and deploy using the script**
+5. **Build and deploy using the script**
+
    ```bash
    chmod +x deploy-cloud-run.sh
    ./deploy-cloud-run.sh
@@ -73,7 +79,7 @@
      --max-instances=10
    ```
 
-5. **Get the service URL**
+6. **Get the service URL**
    ```bash
    gcloud run services describe interview-master --region=us-central1 --format='value(status.url)'
    ```
@@ -81,11 +87,13 @@
 ### Option 2: Using Local PowerShell (if gcloud is installed)
 
 1. **Open PowerShell in the project directory**
+
    ```powershell
    cd C:\Users\91999\Desktop\interview-master
    ```
 
 2. **Set environment variables** (REQUIRED - replace with your actual values)
+
    ```powershell
    $env:FIREBASE_API_KEY="your-firebase-api-key"
    $env:FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
@@ -98,11 +106,13 @@
    ```
 
 3. **Set the project**
+
    ```powershell
    gcloud config set project $env:GCLOUD_PROJECT_ID
    ```
 
-3. **Set environment variables** (PowerShell syntax)
+4. **Set environment variables** (PowerShell syntax)
+
    ```powershell
    $env:FIREBASE_API_KEY="your-firebase-api-key"
    $env:FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
@@ -114,7 +124,8 @@
    $env:GCLOUD_PROJECT_ID="your-gcloud-project-id"
    ```
 
-4. **Build and deploy**
+5. **Build and deploy**
+
    ```powershell
    # Build Docker image
    gcloud builds submit `
@@ -134,6 +145,7 @@
    ```
 
 ## Expected Build Time
+
 - Docker build: ~5-10 minutes
 - Cloud Run deployment: ~2-3 minutes
 - Total: ~7-13 minutes
@@ -141,6 +153,7 @@
 ## Verification
 
 After deployment, visit the service URL and verify:
+
 - ✅ Home page loads
 - ✅ Can access without login (anonymous auth)
 - ✅ Can start a practice session
@@ -151,10 +164,12 @@ After deployment, visit the service URL and verify:
 ## Troubleshooting
 
 ### Build fails with "auth/invalid-api-key"
+
 - Ensure environment variables are correctly passed in `cloudbuild.yaml`
 - Check that API keys are valid
 
 ### Deployment fails with permissions error
+
 - Ensure Cloud Build service account has necessary permissions:
   ```bash
   PROJECT_NUMBER=$(gcloud projects describe $GCLOUD_PROJECT_ID --format='value(projectNumber)')
@@ -164,6 +179,7 @@ After deployment, visit the service URL and verify:
   ```
 
 ### Service returns 404
+
 - Check that the service is deployed:
   ```bash
   gcloud run services list --region=us-central1
@@ -175,5 +191,3 @@ After deployment, visit the service URL and verify:
 2. Update Kaggle submission with the new URL
 3. Verify all features work in production
 4. Monitor Cloud Run logs for any issues
-
-
