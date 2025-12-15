@@ -7,6 +7,7 @@
 ## Prerequisites
 
 1. Generate API keys:
+
    - **Firebase API Key**: Get from [Firebase Console](https://console.firebase.google.com/) → Project Settings → General
    - **Gemini API Key**: Get from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
@@ -98,17 +99,21 @@ gcloud run services update interview-master \
 ## Troubleshooting
 
 ### Error: "FIREBASE_API_KEY environment variable is not set"
+
 **Solution:** Export the variable before running the script:
+
 ```bash
 export FIREBASE_API_KEY="your-key"
 ```
 
 ### Error: "GEMINI_API_KEY environment variable is not set"
+
 **Solution:** Export the variable before running the script:
+
 ```bash
 export GEMINI_API_KEY="your-key"
 ```
 
 ### Keys not working after deployment
-**Solution:** Update Cloud Run environment variables directly (see "Updating API Keys" above)
 
+**Solution:** Update Cloud Run environment variables directly (see "Updating API Keys" above)

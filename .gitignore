@@ -46,3 +46,12 @@ secrets/
 *.tsbuildinfo
 next-env.d.ts
 
+# Documentation files (excluded from git)
+AVATAR_IMPLEMENTATION_PLAN.md
+Modified-PRD-Avatar.md
+cursor-google-workflow.md
+pre-submission-checklist.md
+project-summary.md
+technical-spec.md
+ui-ux-design.md
+
