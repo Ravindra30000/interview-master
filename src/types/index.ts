@@ -56,6 +56,27 @@ export interface Interview {
     voice: { score: number; notes: string; suggestions: string[] };
     timing: { score: number; notes: string; suggestions: string[] };
     lip_sync: { score: number; notes: string; suggestions: string[] };
+    eye_contact?: {
+      score: number;
+      percentage_at_camera: number;
+      frequency_looking_away: "low" | "medium" | "high";
+      notes: string;
+      suggestions: string[];
+    };
+    body_language_patterns?: {
+      gesture_frequency: "low" | "medium" | "high";
+      posture_consistency: "consistent" | "variable" | "inconsistent";
+      movement_level: "still" | "moderate" | "excessive";
+      notes: string;
+      suggestions: string[];
+    };
+    professional_presentation?: {
+      score: number;
+      environment_quality: "excellent" | "good" | "fair" | "poor";
+      appearance: "professional" | "casual" | "needs_improvement";
+      notes: string;
+      suggestions: string[];
+    };
     top_improvements: string[];
   };
   questions?: Array<{
@@ -90,5 +111,3 @@ export interface AvatarExpression {
   eyebrowAngle: number;
   mouthOpen: number;
 }
-
-

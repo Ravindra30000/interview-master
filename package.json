@@ -10,9 +10,11 @@
     "generate-questions": "tsx scripts/generate-questions.ts"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^5.0.0",
     "@google/generative-ai": "^0.21.0",
     "clsx": "^2.1.1",
     "firebase": "^10.12.2",
+    "lucide-react": "^0.562.0",
     "next": "^14.2.5",
     "next-auth": "^4.24.7",
     "react": "^18.3.1",

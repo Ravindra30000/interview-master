@@ -1,20 +1,41 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import { fetchQuestions, filterQuestions, pickRandomQuestions, resetQuestionTracking } from "@/lib/questions";
+import {
+  fetchQuestions,
+  filterQuestions,
+  pickRandomQuestions,
+  resetQuestionTracking,
+} from "@/lib/questions";
 import type { Question } from "@/types";
 import InterviewRecorder from "@/components/InterviewRecorder";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
 import RequireAuth from "@/components/RequireAuth";
-import { analyzeAnswerLocally, toTenPointScore, type AnswerMetrics } from "@/lib/localScoring";
+import {
+  MessageCircle,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Clock,
+  Target,
+  FileText,
+} from "lucide-react";
+import {
+  analyzeAnswerLocally,
+  toTenPointScore,
+  type AnswerMetrics,
+} from "@/lib/localScoring";
 import { saveInterviewSession } from "@/lib/interviews";
 import { auth, db } from "@/lib/firebase";
-import { uploadInterviewVideos, MAX_TOTAL_SIZE_PER_SESSION } from "@/lib/storage";
+import {
+  uploadInterviewVideos,
+  MAX_TOTAL_SIZE_PER_SESSION,
+} from "@/lib/storage";
 import { doc, getDoc } from "firebase/firestore";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 function PracticeSessionContent() {
   const searchParams = useSearchParams();
@@ -27,12 +48,25 @@ function PracticeSessionContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<
-    { transcript: string; duration: number; blob?: Blob; blobUrl?: string; localMetrics?: AnswerMetrics; localScore?: number; question?: string; framework?: string }[]
+    {
+      transcript: string;
+      duration: number;
+      blob?: Blob;
+      blobUrl?: string;
+      localMetrics?: AnswerMetrics;
+      localScore?: number;
+      question?: string;
+      framework?: string;
+    }[]
   >([]);
   const [analyzing, setAnalyzing] = useState(false);
-  const [editingTranscript, setEditingTranscript] = useState<number | null>(null);
+  const [editingTranscript, setEditingTranscript] = useState<number | null>(
+    null
+  );
   const [editedTranscript, setEditedTranscript] = useState("");
-  const [videoQuality, setVideoQuality] = useState<"low" | "medium" | "high">("medium");
+  const [videoQuality, setVideoQuality] = useState<"low" | "medium" | "high">(
+    "medium"
+  );
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,11 +104,19 @@ function PracticeSessionContent() {
     [questions, currentIndex]
   );
 
-  const handleComplete = (data: { blob: Blob | null; transcript: string; duration: number }) => {
+  const handleComplete = (data: {
+    blob: Blob | null;
+    transcript: string;
+    duration: number;
+  }) => {
     const blobUrl = data.blob ? URL.createObjectURL(data.blob) : undefined;
     const question = currentQuestion;
     const localMetrics = question
-      ? analyzeAnswerLocally(data.transcript, question.answerFramework || "", question.timeLimit || 120)
+      ? analyzeAnswerLocally(
+          data.transcript,
+          question.answerFramework || "",
+          question.timeLimit || 120
+        )
       : undefined;
     const localScore = localMetrics ? toTenPointScore(localMetrics) : undefined;
     setResults((prev) => {
@@ -102,10 +144,14 @@ function PracticeSessionContent() {
     const question = questions[index];
     const updatedTranscript = editedTranscript.trim();
     const localMetrics = question
-      ? analyzeAnswerLocally(updatedTranscript, question.answerFramework || "", question.timeLimit || 120)
+      ? analyzeAnswerLocally(
+          updatedTranscript,
+          question.answerFramework || "",
+          question.timeLimit || 120
+        )
       : undefined;
     const localScore = localMetrics ? toTenPointScore(localMetrics) : undefined;
-    
+
     setResults((prev) => {
       const updated = [...prev];
       updated[index] = {
@@ -134,20 +180,29 @@ function PracticeSessionContent() {
       setStatusMessage("Uploading videos and running AI analysis...");
       try {
         // Check if we have any transcripts
-        const validResults = results.filter(r => r.transcript && r.transcript.trim().length > 0);
+        const validResults = results.filter(
+          (r) => r.transcript && r.transcript.trim().length > 0
+        );
         if (validResults.length === 0) {
-          throw new Error("No transcripts available for analysis. Please record at least one answer.");
+          throw new Error(
+            "No transcripts available for analysis. Please record at least one answer."
+          );
         }
 
         // Generate interview ID first (for video uploads)
-        const interviewId = `interview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const interviewId = `interview_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
 
         // Upload videos to Firebase Storage first so we can provide URLs to Gemini
         const videoBlobs = results.map((r) => r.blob || null);
         let videoUrls: (string | null)[] = [];
-        
+
         // Check total session size before uploading
-        const totalSize = videoBlobs.reduce((sum, blob) => sum + (blob?.size || 0), 0);
+        const totalSize = videoBlobs.reduce(
+          (sum, blob) => sum + (blob?.size || 0),
+          0
+        );
         if (totalSize > MAX_TOTAL_SIZE_PER_SESSION) {
           const totalMB = (totalSize / (1024 * 1024)).toFixed(2);
           const maxMB = (MAX_TOTAL_SIZE_PER_SESSION / (1024 * 1024)).toFixed(0);
@@ -161,17 +216,30 @@ function PracticeSessionContent() {
 
         try {
           setStatusMessage("Uploading videos...");
-          videoUrls = await uploadInterviewVideos(auth.currentUser?.uid || "", interviewId, videoBlobs);
+          videoUrls = await uploadInterviewVideos(
+            auth.currentUser?.uid || "",
+            interviewId,
+            videoBlobs
+          );
           const uploadedCount = videoUrls.filter(Boolean).length;
           const failedCount = videoBlobs.filter(Boolean).length - uploadedCount;
-          console.log(`Videos uploaded: ${uploadedCount}/${videoBlobs.filter(Boolean).length}`);
-          
+          console.log(
+            `Videos uploaded: ${uploadedCount}/${
+              videoBlobs.filter(Boolean).length
+            }`
+          );
+
           if (failedCount > 0) {
-            console.warn(`${failedCount} video(s) failed to upload (likely due to size limits)`);
+            console.warn(
+              `${failedCount} video(s) failed to upload (likely due to size limits)`
+            );
           }
         } catch (uploadError: any) {
           const errorMessage = uploadError?.message || String(uploadError);
-          console.error("Video upload failed (continuing without videos):", errorMessage);
+          console.error(
+            "Video upload failed (continuing without videos):",
+            errorMessage
+          );
           setStatusMessage("Video upload failed; saving without videos.");
           // Continue without videos - not critical
         }
@@ -181,7 +249,8 @@ function PracticeSessionContent() {
           .map((r, idx) => `Q${idx + 1}: ${r.transcript || "No answer"}`)
           .join("\n\n");
         const firstQuestion = validResults[0]?.question || "Interview practice";
-        const firstFramework = validResults[0]?.framework || "Problem → Solution → Impact";
+        const firstFramework =
+          validResults[0]?.framework || "Problem → Solution → Impact";
 
         // Call Gemini API
         setStatusMessage("Running AI analysis (transcript + video)...");
@@ -207,11 +276,14 @@ function PracticeSessionContent() {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           console.error("API Error:", errorData);
-          throw new Error(errorData.error || `AI analysis failed (status ${response.status}). Please try again.`);
+          throw new Error(
+            errorData.error ||
+              `AI analysis failed (status ${response.status}). Please try again.`
+          );
         }
 
         const geminiData = await response.json();
-        
+
         // Validate response structure
         if (!geminiData.score && geminiData.score !== 0) {
           console.warn("Invalid Gemini response:", geminiData);
@@ -254,10 +326,13 @@ function PracticeSessionContent() {
         router.push(`/results/${savedInterviewId}`);
         setStatusMessage(null);
       } catch (err: any) {
-        const errorMessage = err instanceof Error ? err.message : (err?.message || String(err));
+        const errorMessage =
+          err instanceof Error ? err.message : err?.message || String(err);
         console.error("Analysis error:", errorMessage);
-        setStatusMessage(errorMessage || "Analysis failed. Falling back to local save.");
-        
+        setStatusMessage(
+          errorMessage || "Analysis failed. Falling back to local save."
+        );
+
         // Try to save with local scoring only
         try {
           const user = auth.currentUser;
@@ -266,27 +341,47 @@ function PracticeSessionContent() {
           }
 
           // Generate interview ID for video uploads
-          const interviewId = `interview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const interviewId = `interview_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
 
           // Upload videos (non-blocking)
           const videoBlobs = results.map((r) => r.blob || null);
           let videoUrls: (string | null)[] = [];
-          
+
           // Check total session size
-          const totalSize = videoBlobs.reduce((sum, blob) => sum + (blob?.size || 0), 0);
+          const totalSize = videoBlobs.reduce(
+            (sum, blob) => sum + (blob?.size || 0),
+            0
+          );
           if (totalSize > MAX_TOTAL_SIZE_PER_SESSION) {
             const totalMB = (totalSize / (1024 * 1024)).toFixed(2);
-            const maxMB = (MAX_TOTAL_SIZE_PER_SESSION / (1024 * 1024)).toFixed(0);
-            console.warn(`Session size (${totalMB} MB) exceeds limit (${maxMB} MB)`);
+            const maxMB = (MAX_TOTAL_SIZE_PER_SESSION / (1024 * 1024)).toFixed(
+              0
+            );
+            console.warn(
+              `Session size (${totalMB} MB) exceeds limit (${maxMB} MB)`
+            );
           }
-          
+
           try {
-            videoUrls = await uploadInterviewVideos(user.uid, interviewId, videoBlobs);
+            videoUrls = await uploadInterviewVideos(
+              user.uid,
+              interviewId,
+              videoBlobs
+            );
             const uploadedCount = videoUrls.filter(Boolean).length;
-            console.log(`Videos uploaded: ${uploadedCount}/${videoBlobs.filter(Boolean).length}`);
+            console.log(
+              `Videos uploaded: ${uploadedCount}/${
+                videoBlobs.filter(Boolean).length
+              }`
+            );
           } catch (uploadError: any) {
             const errorMessage = uploadError?.message || String(uploadError);
-            console.error("Video upload failed (continuing without videos):", errorMessage);
+            console.error(
+              "Video upload failed (continuing without videos):",
+              errorMessage
+            );
           }
 
           const interviewSession = {
@@ -301,23 +396,29 @@ function PracticeSessionContent() {
               videoUrl: videoUrls[idx] || null,
             })),
           };
-          
+
           const savedInterviewId = await saveInterviewSession(
             user.uid,
             interviewSession,
-            undefined,      // analysis (no analysis available on error)
-            undefined,       // multimodalAnalysis (no multimodal data on error)
-            interviewId      // interviewId (5th parameter)
+            undefined, // analysis (no analysis available on error)
+            undefined, // multimodalAnalysis (no multimodal data on error)
+            interviewId // interviewId (5th parameter)
           );
           router.push(`/results/${savedInterviewId}?error=analysis_failed`);
           setStatusMessage(null);
         } catch (saveErr: any) {
           const errorMessage = saveErr?.message || String(saveErr);
           console.error("Failed to save interview:", errorMessage);
-          setStatusMessage("Unable to save interview. Your answers may not be stored.");
+          setStatusMessage(
+            "Unable to save interview. Your answers may not be stored."
+          );
           // Last resort: use URL params
-          const score = results.reduce((sum, r) => sum + (r?.localScore || 0), 0) / (results.length || 1);
-          router.push(`/results/${Date.now()}?score=${score.toFixed(1)}&error=save_failed`);
+          const score =
+            results.reduce((sum, r) => sum + (r?.localScore || 0), 0) /
+            (results.length || 1);
+          router.push(
+            `/results/${Date.now()}?score=${score.toFixed(1)}&error=save_failed`
+          );
         }
       } finally {
         setAnalyzing(false);
@@ -339,7 +440,10 @@ function PracticeSessionContent() {
                 Question {currentIndex + 1} of {Math.max(questions.length, 5)}
               </h1>
             </div>
-            <Link href="/practice" className="text-gray-500 hover:text-gray-700 text-sm">
+            <Link
+              href="/practice"
+              className="text-gray-500 hover:text-gray-700 text-sm"
+            >
               Change selection
             </Link>
           </div>
@@ -347,10 +451,13 @@ function PracticeSessionContent() {
 
         <main className="max-w-6xl mx-auto p-6 grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
-            {loading && <p className="text-sm text-gray-600">Loading questions...</p>}
+            {loading && (
+              <p className="text-sm text-gray-600">Loading questions...</p>
+            )}
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error} (ensure `public/questions.json` exists). Try refreshing the page.
+                {error} (ensure `public/questions.json` exists). Try refreshing
+                the page.
               </div>
             )}
             {!loading && !error && currentQuestion && (
@@ -370,10 +477,14 @@ function PracticeSessionContent() {
 
           <aside className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-2">Question details</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-2">
+                Question details
+              </h3>
               {currentQuestion ? (
                 <div className="space-y-2 text-sm text-gray-800">
-                  <p className="font-semibold text-gray-900">{currentQuestion.question}</p>
+                  <p className="font-semibold text-gray-900">
+                    {currentQuestion.question}
+                  </p>
                   <p>Category: {currentQuestion.category}</p>
                   <p>Framework: {currentQuestion.answerFramework}</p>
                   {currentQuestion.redFlags && (
@@ -391,9 +502,12 @@ function PracticeSessionContent() {
             </div>
 
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-2">Progress</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-2">
+                Progress
+              </h3>
               <p className="text-sm text-gray-700 mb-2">
-                Answer each question, then click Next. Final results page is pending.
+                Answer each question, then click Next. Final results page is
+                pending.
               </p>
               <button
                 onClick={goNext}
@@ -414,12 +528,19 @@ function PracticeSessionContent() {
             </div>
 
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-2">Recorded answers</h3>
+              <h3 className="text-base font-bold text-gray-900 mb-2">
+                Recorded answers
+              </h3>
               <div className="space-y-3">
                 {results.map((r, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-2">
+                  <div
+                    key={idx}
+                    className="border border-gray-200 rounded-lg p-2"
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs text-gray-600 font-semibold">Q{idx + 1}</p>
+                      <p className="text-xs text-gray-600 font-semibold">
+                        Q{idx + 1}
+                      </p>
                       {editingTranscript !== idx && (
                         <button
                           onClick={() => handleEditTranscript(idx)}
@@ -459,7 +580,11 @@ function PracticeSessionContent() {
                       </p>
                     )}
                     {r.blobUrl && (
-                      <video src={r.blobUrl} controls className="mt-2 w-full rounded" />
+                      <video
+                        src={r.blobUrl}
+                        controls
+                        className="mt-2 w-full rounded"
+                      />
                     )}
                     {r.localScore !== undefined && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -469,7 +594,9 @@ function PracticeSessionContent() {
                   </div>
                 ))}
                 {results.length === 0 && (
-                  <p className="text-sm text-gray-600">Recordings will appear here after you stop.</p>
+                  <p className="text-sm text-gray-600">
+                    Recordings will appear here after you stop.
+                  </p>
                 )}
               </div>
             </div>
@@ -482,18 +609,19 @@ function PracticeSessionContent() {
 
 export default function PracticeSessionPage() {
   return (
-    <Suspense fallback={
-      <RequireAuth>
-        <div className="min-h-screen bg-white">
-          <Header />
-          <div className="max-w-6xl mx-auto p-6">
-            <p className="text-sm text-gray-600">Loading session...</p>
+    <Suspense
+      fallback={
+        <RequireAuth>
+          <div className="min-h-screen bg-white">
+            <Header />
+            <div className="max-w-6xl mx-auto p-6">
+              <p className="text-sm text-gray-600">Loading session...</p>
+            </div>
           </div>
-        </div>
-      </RequireAuth>
-    }>
+        </RequireAuth>
+      }
+    >
       <PracticeSessionContent />
     </Suspense>
   );
 }
-

@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchQuestions, filterQuestions, pickRandomQuestions, getAvailableRoles, resetQuestionTracking } from "@/lib/questions";
+import {
+  fetchQuestions,
+  filterQuestions,
+  pickRandomQuestions,
+  getAvailableRoles,
+  resetQuestionTracking,
+} from "@/lib/questions";
 import type { Question } from "@/types";
 import Link from "next/link";
 import Header from "@/components/Header";
 import RequireAuth from "@/components/RequireAuth";
 import ImportQuestionsButton from "@/components/ImportQuestionsButton";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 const difficulties = ["Junior", "Mid", "Senior"];
 
@@ -20,7 +26,10 @@ export default function PracticeSetupPage() {
   const [difficulty, setDifficulty] = useState("Mid");
 
   // Get available roles dynamically from questions
-  const availableRoles = useMemo(() => getAvailableRoles(questions), [questions]);
+  const availableRoles = useMemo(
+    () => getAvailableRoles(questions),
+    [questions]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -61,7 +70,10 @@ export default function PracticeSetupPage() {
         <div className="border-b border-gray-200 p-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <h1 className="text-lg font-semibold">Start New Interview</h1>
-            <Link href="/dashboard" className="text-gray-500 hover:text-gray-700 text-sm">
+            <Link
+              href="/dashboard"
+              className="text-gray-500 hover:text-gray-700 text-sm"
+            >
               Back to dashboard
             </Link>
           </div>
@@ -71,17 +83,23 @@ export default function PracticeSetupPage() {
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-base font-bold text-gray-900 mb-4">Select preferences</h2>
+                <h2 className="text-base font-bold text-gray-900 mb-4">
+                  Select preferences
+                </h2>
 
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm font-semibold text-gray-800 mb-2">
-                      Role {availableRoles.length > 0 && `(${availableRoles.length} available)`}
+                      Role{" "}
+                      {availableRoles.length > 0 &&
+                        `(${availableRoles.length} available)`}
                     </p>
                     {loading ? (
                       <p className="text-sm text-gray-600">Loading roles...</p>
                     ) : availableRoles.length === 0 ? (
-                      <p className="text-sm text-red-600">No roles available. Please import questions.</p>
+                      <p className="text-sm text-red-600">
+                        No roles available. Please import questions.
+                      </p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {availableRoles.map((r) => (
@@ -102,7 +120,9 @@ export default function PracticeSetupPage() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold text-gray-800 mb-2">Difficulty</p>
+                    <p className="text-sm font-semibold text-gray-800 mb-2">
+                      Difficulty
+                    </p>
                     <div className="flex gap-2">
                       {difficulties.map((d) => (
                         <button
@@ -124,11 +144,17 @@ export default function PracticeSetupPage() {
 
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-bold text-gray-900">Selected questions</h2>
-                  <span className="text-sm text-gray-600">Showing 5 randomly picked</span>
+                  <h2 className="text-base font-bold text-gray-900">
+                    Selected questions
+                  </h2>
+                  <span className="text-sm text-gray-600">
+                    Showing 5 randomly picked
+                  </span>
                 </div>
 
-                {loading && <p className="text-sm text-gray-600">Loading questions...</p>}
+                {loading && (
+                  <p className="text-sm text-gray-600">Loading questions...</p>
+                )}
                 {error && (
                   <p className="text-sm text-red-600">
                     {error} (ensure `public/questions.json` exists)
@@ -152,30 +178,46 @@ export default function PracticeSetupPage() {
                       </div>
                     ))}
                     {selectedQuestions.length === 0 && (
-                      <p className="text-sm text-gray-600">No questions for this selection.</p>
+                      <p className="text-sm text-gray-600">
+                        No questions for this selection.
+                      </p>
                     )}
                   </div>
                 )}
               </div>
             </div>
 
-            <aside className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm h-fit">
-              <h3 className="text-base font-bold text-gray-900 mb-3">Ready to practice?</h3>
-              <p className="text-sm text-gray-700 mb-4">
-                We&apos;ll start with these 5 questions. Recording and AI feedback will be added next.
-              </p>
-              <Link
-                href={{
-                  pathname: "/practice/session",
-                  query: { role, difficulty },
-                }}
-                className="block text-center w-full bg-primary text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Start practice
-              </Link>
-              <p className="text-xs text-gray-500 mt-3">
-                Next steps will include recording, transcription, and AI scoring.
-              </p>
+            <aside className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm h-fit space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-3">
+                  Ready to practice?
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  We&apos;ll start with these 5 questions. Choose a mode below.
+                </p>
+                <Link
+                  href={{
+                    pathname: "/practice/session",
+                    query: { role, difficulty },
+                  }}
+                  className="block text-center w-full bg-primary text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 transition mb-2"
+                >
+                  Classic practice mode
+                </Link>
+                <Link
+                  href={{
+                    pathname: "/practice/avatar",
+                    query: { role, difficulty },
+                  }}
+                  className="block text-center w-full border border-primary text-primary px-4 py-3 rounded-lg font-semibold hover:bg-blue-50 transition"
+                >
+                  Avatar interview mode
+                </Link>
+                <p className="text-xs text-gray-500 mt-3">
+                  Avatar mode uses pre-recorded videos, Gemini 2.5 Flash and
+                  Google TTS to act as an interview coach.
+                </p>
+              </div>
             </aside>
           </div>
 
@@ -187,4 +229,3 @@ export default function PracticeSetupPage() {
     </RequireAuth>
   );
 }
-
