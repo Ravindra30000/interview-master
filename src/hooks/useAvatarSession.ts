@@ -48,16 +48,25 @@ export function useAvatarSession(): AvatarSessionState {
   const [error, setError] = useState<string | null>(null);
   const [avatarMode, setAvatarMode] = useState<AvatarMode>("idle");
 
-  // Initialize session
+  // Initialize session (wait for auth state)
   useEffect(() => {
-    const initSession = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          setError("User not authenticated");
-          return;
-        }
+    const { onAuthStateChanged } = require("firebase/auth");
+    
+    // Wait for auth state to be determined
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user: any) => {
+      if (!user) {
+        // Still waiting for anonymous sign-in from RequireAuth
+        // Don't set error yet, wait for sign-in to complete
+        return;
+      }
 
+      // User is authenticated, initialize session
+      if (sessionId) {
+        // Session already initialized
+        return;
+      }
+
+      try {
         const newSessionId = `session_${Date.now()}_${Math.random()
           .toString(36)
           .substr(2, 9)}`;
@@ -77,14 +86,17 @@ export function useAvatarSession(): AvatarSessionState {
 
         setSessionId(newSessionId);
         setAvatarMode("idle"); // Set initial mode to idle so video autoplays
+        setError(null); // Clear any previous errors
       } catch (err: any) {
         console.error("[useAvatarSession] Session init error:", err);
         setError(err?.message || "Failed to initialize session");
       }
-    };
+    });
 
-    initSession();
-  }, []);
+    return () => {
+      unsubscribeAuth();
+    };
+  }, [sessionId]);
 
   // Subscribe to session state changes
   useEffect(() => {
