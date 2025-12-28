@@ -5,18 +5,19 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import RequireAuth from "@/components/RequireAuth";
 import { auth, db } from "@/lib/firebase";
-import { 
-  updateEmail, 
-  updatePassword, 
-  reauthenticateWithCredential, 
+import {
+  updateEmail,
+  updatePassword,
+  reauthenticateWithCredential,
   EmailAuthProvider,
-  User 
+  User,
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getInterviewStats } from "@/lib/interviews";
+import { fetchQuestions, getAvailableRoles } from "@/lib/questions";
 import { useRouter } from "next/navigation";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface UserPreferences {
   favoriteRole?: string;
@@ -49,6 +50,9 @@ export default function ProfilePage() {
     totalInterviews: 0,
     averageScore: 0,
   });
+
+  // Available roles
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -141,7 +145,10 @@ export default function ProfilePage() {
 
     try {
       // Re-authenticate user
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        currentPassword
+      );
       await reauthenticateWithCredential(user, credential);
 
       // Update password
@@ -212,7 +219,9 @@ export default function ProfilePage() {
         <div className="max-w-4xl mx-auto space-y-6 p-6">
           <header className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Profile Settings
+              </h1>
               <p className="text-gray-600 mt-1">
                 Manage your account settings and preferences.
               </p>
@@ -227,11 +236,15 @@ export default function ProfilePage() {
 
           {/* Account Stats */}
           <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Account Statistics</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Account Statistics
+            </h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Total Interviews</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalInterviews}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {stats.totalInterviews}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Average Score</p>
@@ -244,7 +257,9 @@ export default function ProfilePage() {
 
           {/* Update Email */}
           <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Email Address</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Email Address
+            </h2>
             <form onSubmit={handleUpdateEmail} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,7 +285,9 @@ export default function ProfilePage() {
 
           {/* Update Password */}
           <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Change Password</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Change Password
+            </h2>
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -322,7 +339,9 @@ export default function ProfilePage() {
 
           {/* Preferences */}
           <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Preferences</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Preferences
+            </h2>
             <form onSubmit={handleUpdatePreferences} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -331,21 +350,25 @@ export default function ProfilePage() {
                 <select
                   value={preferences.favoriteRole}
                   onChange={(e) =>
-                    setPreferences({ ...preferences, favoriteRole: e.target.value })
+                    setPreferences({
+                      ...preferences,
+                      favoriteRole: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="">Select a role</option>
-                  <option value="Backend Engineer">Backend Engineer</option>
-                  <option value="Frontend Engineer">Frontend Engineer</option>
-                  <option value="Full Stack Engineer">Full Stack Engineer</option>
-                  <option value="Product Manager">Product Manager</option>
-                  <option value="Data Scientist">Data Scientist</option>
-                  <option value="Data Engineer">Data Engineer</option>
-                  <option value="DevOps Engineer">DevOps Engineer</option>
-                  <option value="Product Designer">Product Designer</option>
-                  <option value="Mobile Engineer">Mobile Engineer</option>
-                  <option value="QA Engineer">QA Engineer</option>
+                  {availableRoles.length > 0 ? (
+                    availableRoles.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>
+                      Loading roles...
+                    </option>
+                  )}
                 </select>
               </div>
               <div>
@@ -355,7 +378,10 @@ export default function ProfilePage() {
                 <select
                   value={preferences.difficulty}
                   onChange={(e) =>
-                    setPreferences({ ...preferences, difficulty: e.target.value })
+                    setPreferences({
+                      ...preferences,
+                      difficulty: e.target.value,
+                    })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
@@ -390,16 +416,26 @@ export default function ProfilePage() {
                 <select
                   value={preferences.videoQuality || "medium"}
                   onChange={(e) =>
-                    setPreferences({ ...preferences, videoQuality: e.target.value as "low" | "medium" | "high" })
+                    setPreferences({
+                      ...preferences,
+                      videoQuality: e.target.value as "low" | "medium" | "high",
+                    })
                   }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
-                  <option value="low">Low (500 Kbps) - Smaller files, faster upload</option>
-                  <option value="medium">Medium (1 Mbps) - Balanced quality and size</option>
-                  <option value="high">High (2 Mbps) - Better quality, larger files</option>
+                  <option value="low">
+                    Low (500 Kbps) - Smaller files, faster upload
+                  </option>
+                  <option value="medium">
+                    Medium (1 Mbps) - Balanced quality and size
+                  </option>
+                  <option value="high">
+                    High (2 Mbps) - Better quality, larger files
+                  </option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  This will be your default recording quality for practice sessions
+                  This will be your default recording quality for practice
+                  sessions
                 </p>
               </div>
               <button
@@ -428,4 +464,3 @@ export default function ProfilePage() {
     </RequireAuth>
   );
 }
-

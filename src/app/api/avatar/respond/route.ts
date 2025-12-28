@@ -37,8 +37,8 @@ export async function POST(req: Request) {
         text: avatarResponse.text,
         voice: {
           languageCode: "en-US",
-          name: "en-US-Neural2-F",
-          ssmlGender: "FEMALE",
+          name: "en-US-Neural2-D",
+          ssmlGender: "MALE",
         },
         audioConfig: {
           audioEncoding: "MP3",

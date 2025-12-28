@@ -43,8 +43,8 @@ export async function synthesizeSpeech(options: TTSOptions): Promise<Buffer> {
     input: { text: options.text },
     voice: {
       languageCode: options.voice?.languageCode || "en-US",
-      name: options.voice?.name || "en-US-Neural2-F",
-      ssmlGender: options.voice?.ssmlGender || "NEUTRAL",
+      name: options.voice?.name || "en-US-Neural2-D",
+      ssmlGender: options.voice?.ssmlGender || "MALE",
     },
     audioConfig: {
       audioEncoding: options.audioConfig?.audioEncoding || "MP3",

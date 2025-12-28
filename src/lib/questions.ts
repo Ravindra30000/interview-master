@@ -9,7 +9,7 @@ export async function fetchQuestions(): Promise<Question[]> {
   try {
     // Try to fetch from Firestore first
     const questionsRef = collection(db, "questions");
-    const q = query(questionsRef, limit(500)); // Limit to prevent huge reads
+    const q = query(questionsRef, limit(5000)); // Increased limit to support comprehensive question database
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
@@ -39,13 +39,15 @@ export async function fetchQuestions(): Promise<Question[]> {
     console.log("Firestore empty or failed, falling back to local JSON");
     const res = await fetch("/questions.json", { cache: "no-store" });
     if (!res.ok) {
-      throw new Error("Failed to load questions from both Firestore and local JSON");
+      throw new Error(
+        "Failed to load questions from both Firestore and local JSON"
+      );
     }
     const data = await res.json();
     return data.questions as Question[];
   } catch (error: any) {
     console.error("Error fetching questions:", error);
-    
+
     // Final fallback to local JSON
     try {
       const res = await fetch("/questions.json", { cache: "no-store" });
@@ -53,12 +55,18 @@ export async function fetchQuestions(): Promise<Question[]> {
         throw new Error("Failed to load questions");
       }
       const data = await res.json();
-      console.log(`Loaded ${data.questions?.length || 0} questions from local JSON (fallback)`);
+      console.log(
+        `Loaded ${
+          data.questions?.length || 0
+        } questions from local JSON (fallback)`
+      );
       return data.questions as Question[];
     } catch (fallbackError: any) {
       const errorMessage = fallbackError?.message || String(fallbackError);
       console.error("Both Firestore and local JSON failed:", errorMessage);
-      throw new Error("Failed to load questions. Please ensure questions are imported to Firestore or questions.json exists.");
+      throw new Error(
+        "Failed to load questions. Please ensure questions are imported to Firestore or questions.json exists."
+      );
     }
   }
 }
@@ -109,7 +117,10 @@ function shuffleArray<T>(array: T[]): T[] {
 /**
  * Pick random questions with improved randomization, session tracking, and category balancing
  */
-export function pickRandomQuestions(questions: Question[], count = 5): Question[] {
+export function pickRandomQuestions(
+  questions: Question[],
+  count = 5
+): Question[] {
   if (questions.length === 0) return [];
   if (questions.length <= count) {
     // If we have fewer questions than requested, return all
@@ -208,5 +219,3 @@ export function getAvailableRoles(questions: Question[]): string[] {
   });
   return Array.from(roles).sort();
 }
-
-
