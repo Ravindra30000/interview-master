@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { AvatarEmotion } from "@/lib/avatarVideos";
+import type { AvatarEmotion } from "@/types/realtime";
 import type { ConversationMessage } from "@/types/realtime";
 
 export interface GeminiAvatarResponse {
