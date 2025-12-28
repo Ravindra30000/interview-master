@@ -16,6 +16,8 @@ steps:
       - '--build-arg'
       - 'NEXT_PUBLIC_FIREBASE_APP_ID=${_FIREBASE_APP_ID}'
       - '--build-arg'
+      - 'NEXT_PUBLIC_FIREBASE_DATABASE_URL=${_FIREBASE_DATABASE_URL}'
+      - '--build-arg'
       - 'NEXT_PUBLIC_GEMINI_API_KEY=${_GEMINI_API_KEY}'
       - '--tag'
       - 'gcr.io/$PROJECT_ID/interview-master:latest'
