@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/Header";
@@ -33,7 +33,28 @@ import type { Question } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+// Loading fallback for Suspense boundary
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+        <p className="text-gray-600">Loading interview session...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page component wrapped in Suspense
 export default function AvatarPracticePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AvatarPracticeContent />
+    </Suspense>
+  );
+}
+
+function AvatarPracticeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const role = searchParams.get("role") || "Backend Engineer";
