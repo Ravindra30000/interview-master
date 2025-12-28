@@ -6,17 +6,22 @@ let ttsClient: TextToSpeechClient | null = null;
 function getTTSClient(): TextToSpeechClient {
   if (ttsClient) return ttsClient;
 
-  // Use service account credentials from environment
+  // In Cloud Run, Application Default Credentials (ADC) are automatically available
+  // via the service account attached to the Cloud Run instance.
+  // For local development, you can set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON file.
+  
   const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  if (!credentialsPath) {
-    throw new Error(
-      "GOOGLE_APPLICATION_CREDENTIALS environment variable not set. Please set it to the path of your service account JSON file."
-    );
+  
+  if (credentialsPath) {
+    // Local development with explicit credentials file
+    ttsClient = new TextToSpeechClient({
+      keyFilename: credentialsPath,
+    });
+  } else {
+    // Cloud Run / GCP environment - use Application Default Credentials
+    // ADC automatically uses the service account attached to Cloud Run
+    ttsClient = new TextToSpeechClient();
   }
-
-  ttsClient = new TextToSpeechClient({
-    keyFilename: credentialsPath,
-  });
 
   return ttsClient;
 }
