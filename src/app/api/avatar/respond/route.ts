@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { processUserAnswer } from "@/lib/avatarConversation";
 import { synthesizeSpeech } from "@/lib/textToSpeech";
+import { generateAvatarVideo } from "@/lib/avatarGeneration";
 import { getAvatarVideo } from "@/lib/avatarVideos";
 import type { ConversationMessage } from "@/types/realtime";
 
@@ -30,37 +31,73 @@ export async function POST(req: Request) {
       conversationHistory
     );
 
-    // Step 2: Generate TTS audio and return as data URL
+    // Step 2: Generate TTS audio
     let audioUrl: string | null = null;
-    try {
-      const audioBuffer = await synthesizeSpeech({
-        text: avatarResponse.text,
-        voice: {
-          languageCode: "en-US",
-          name: "en-US-Neural2-D",
-          ssmlGender: "MALE",
-        },
-        audioConfig: {
-          audioEncoding: "MP3",
-          speakingRate: 1.0,
-        },
-      });
+    let audioBuffer: Buffer | null = null;
+    let videoUrl: string | null = null;
 
-      // Convert buffer to base64 data URL instead of uploading to Storage
-      // This avoids server-side authentication issues and works for small audio files
-      const base64Audio = audioBuffer.toString("base64");
-      audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
-    } catch (ttsError: any) {
-      console.error("[api/avatar/respond] TTS error:", ttsError);
-      // Continue without audio - video can still play
+    // Cost-saving toggle: use pre-recorded videos only
+    const usePrerecorded = process.env.USE_PRERECORDED_AVATAR === "true";
+
+    audioBuffer = await synthesizeSpeech({
+      text: avatarResponse.text,
+      voice: {
+        languageCode: "en-US",
+        name: "en-US-Neural2-D",
+        ssmlGender: "MALE",
+      },
+      audioConfig: {
+        audioEncoding: "MP3",
+        speakingRate: 1.0,
+      },
+    });
+
+    // Convert buffer to base64 data URL for frontend playback
+    const base64Audio = audioBuffer.toString("base64");
+    audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+    const getFallbackVideo = () => {
+      const avatarVideo =
+        getAvatarVideo(avatarResponse.emotion as any, "speaking") ||
+        getAvatarVideo("neutral" as any, "speaking") ||
+        getAvatarVideo("neutral" as any, "idle");
+      return avatarVideo?.url || null;
+    };
+
+    // If configured to use pre-recorded only, short-circuit here
+    if (usePrerecorded) {
+      videoUrl = getFallbackVideo();
+      return NextResponse.json({
+        avatarResponse: {
+          text: avatarResponse.text,
+          emotion: avatarResponse.emotion,
+          videoUrl,
+          audioUrl,
+          readyToAdvance: avatarResponse.readyToAdvance,
+        },
+        nextQuestion: avatarResponse.nextQuestion,
+        fallbackUsed: true,
+      });
     }
 
-    // Step 3: Select appropriate avatar video based on emotion
-    const avatarVideo = getAvatarVideo(
-      avatarResponse.emotion as any,
-      "speaking"
-    );
-    const videoUrl = avatarVideo?.url || null;
+    // Step 3: Generate avatar video with lip-sync using API, fallback on error
+    try {
+      const avatarResult = await generateAvatarVideo({
+        text: avatarResponse.text,
+        audioBuffer: audioBuffer,
+        emotion: avatarResponse.emotion,
+      });
+      videoUrl = avatarResult.videoUrl;
+      console.log(
+        `[api/avatar/respond] Generated avatar video in ${avatarResult.generationTime}ms using ${avatarResult.provider}`
+      );
+    } catch (avatarError: any) {
+      console.error(
+        "[api/avatar/respond] Avatar generation failed, using pre-recorded fallback:",
+        avatarError?.message || avatarError
+      );
+      videoUrl = getFallbackVideo();
+    }
 
     // Return response
     return NextResponse.json({
@@ -72,16 +109,24 @@ export async function POST(req: Request) {
         readyToAdvance: avatarResponse.readyToAdvance,
       },
       nextQuestion: avatarResponse.nextQuestion,
+      fallbackUsed: usePrerecorded || !videoUrl,
     });
   } catch (error: any) {
     console.error("[api/avatar/respond] Error:", error);
+    
+    // Check if it's a 402 Payment Required error (insufficient credits)
+    const errorMessage = error?.message || "Failed to generate avatar response";
+    const isInsufficientCredits = errorMessage.includes("insufficient credits") || 
+                                  errorMessage.includes("402 Payment Required");
+    
     return NextResponse.json(
       {
-        error: error?.message || "Failed to generate avatar response",
+        error: errorMessage,
+        errorType: isInsufficientCredits ? "INSUFFICIENT_CREDITS" : "GENERATION_ERROR",
         details:
           process.env.NODE_ENV === "development" ? error?.stack : undefined,
       },
-      { status: 500 }
+      { status: isInsufficientCredits ? 402 : 500 }
     );
   }
 }
