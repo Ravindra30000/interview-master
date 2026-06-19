@@ -614,9 +614,23 @@ function AvatarPracticeContent() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold text-gray-800">
-                    Avatar coach
-                  </p>
+                  <div className="flex items-center justify-between min-h-[24px]">
+                    <p className="text-sm font-semibold text-gray-800">
+                      Avatar coach
+                    </p>
+                    {avatarMode === "processing" && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                        <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
+                        Analyzing answer...
+                      </span>
+                    )}
+                    {avatarMode === "listening" && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                        Listening...
+                      </span>
+                    )}
+                  </div>
                   <AvatarVideoPlayer
                     videoUrl={currentAvatarVideoUrl}
                     audioUrl={

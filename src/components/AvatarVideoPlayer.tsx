@@ -175,17 +175,7 @@ export default function AvatarVideoPlayer({
           </div>
         </div>
       )}
-      {avatarState === "processing" && (
-        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg flex flex-col items-center justify-center z-10 backdrop-blur-sm">
-          <div className="bg-white rounded-xl p-5 flex flex-col items-center shadow-2xl max-w-xs text-center border border-gray-100">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-3" />
-            <p className="text-gray-900 text-sm font-bold mb-1">Analyzing Answer</p>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              Evaluating response metrics and preparing the next question...
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Processing state does not overlay anything on the video to keep the person fully visible */}
       <video
         ref={videoRef}
         src={videoUrl}
