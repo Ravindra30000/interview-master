@@ -23,6 +23,7 @@ import {
   resetQuestionTracking,
 } from "@/lib/questions";
 import { saveInterviewSession } from "@/lib/interviews";
+import { getAvatarVideo } from "@/lib/avatarVideos";
 import { auth } from "@/lib/firebase";
 import {
   uploadInterviewVideos,
@@ -97,6 +98,28 @@ function AvatarPracticeContent() {
     onAudioEnded,
     state,
   } = useAvatarSession();
+
+  // Stable URLs for idle/thinking/listening avatar states to prevent video flickering
+  const idleVideoUrl = useMemo(() => getAvatarVideo("neutral", "idle")?.url || null, []);
+  const thinkingVideoUrl = useMemo(() => getAvatarVideo("thinking", "idle")?.url || null, []);
+
+  // Compute the current active video URL based on the avatar mode
+  const currentAvatarVideoUrl = useMemo(() => {
+    switch (avatarMode) {
+      case "greeting":
+        return greetingResponse?.videoUrl || idleVideoUrl;
+      case "speaking":
+        return lastResponse?.videoUrl || idleVideoUrl;
+      case "listening":
+        return idleVideoUrl;
+      case "processing":
+        return thinkingVideoUrl;
+      case "idle":
+      case "ready":
+      default:
+        return idleVideoUrl;
+    }
+  }, [avatarMode, greetingResponse, lastResponse, idleVideoUrl, thinkingVideoUrl]);
 
   useEffect(() => {
     const load = async () => {
@@ -595,13 +618,7 @@ function AvatarPracticeContent() {
                     Avatar coach
                   </p>
                   <AvatarVideoPlayer
-                    videoUrl={
-                      avatarMode === "greeting"
-                        ? greetingResponse?.videoUrl || null
-                        : avatarMode === "speaking"
-                        ? lastResponse?.videoUrl || null
-                        : lastResponse?.videoUrl || null
-                    }
+                    videoUrl={currentAvatarVideoUrl}
                     audioUrl={
                       avatarMode === "greeting"
                         ? greetingResponse?.audioUrl || undefined

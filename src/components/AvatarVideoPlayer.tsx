@@ -138,48 +138,25 @@ export default function AvatarVideoPlayer({
     }
   };
 
-  // Show loading/processing state
-  if (isLoading || avatarState === "processing" || (!videoUrl && !videoError && avatarState !== "listening")) {
+  if (videoError) {
     return (
       <div
-        className={`${className} bg-gray-100 rounded-lg flex flex-col items-center justify-center min-h-[300px] relative`}
+        className={`${className} bg-gray-100 rounded-lg flex items-center justify-center min-h-[300px] border border-red-100`}
       >
-        {videoUrl && avatarState === "processing" && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center z-10">
-            <div className="bg-white rounded-lg p-4 flex flex-col items-center">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-              <p className="text-gray-700 text-sm font-semibold">Processing...</p>
-            </div>
-          </div>
-        )}
-        {(!videoUrl || avatarState === "listening") && (
-          <>
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-            <p className="text-gray-600 text-sm">{getStateMessage()}</p>
-          </>
-        )}
-        {videoUrl && avatarState !== "processing" && (
-          <video
-            src={videoUrl}
-            className="w-full h-full object-cover rounded-lg opacity-50"
-            muted
-            loop
-            autoPlay
-            playsInline
-          />
-        )}
+        <p className="text-red-500 text-sm font-medium px-4 text-center">
+          {videoError}
+        </p>
       </div>
     );
   }
 
-  if (!videoUrl || videoError) {
+  if (!videoUrl) {
     return (
       <div
-        className={`${className} bg-gray-100 rounded-lg flex items-center justify-center min-h-[300px]`}
+        className={`${className} bg-gray-100 rounded-lg flex flex-col items-center justify-center min-h-[300px] relative border border-gray-100`}
       >
-        <p className="text-gray-500 text-sm">
-          {videoError || "No avatar video available"}
-        </p>
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+        <p className="text-gray-600 text-sm">{getStateMessage()}</p>
       </div>
     );
   }
@@ -193,8 +170,19 @@ export default function AvatarVideoPlayer({
       )}
       {avatarState === "listening" && (
         <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-lg flex items-center justify-center z-10 pointer-events-none">
-          <div className="bg-blue-500 bg-opacity-30 rounded-full p-3">
+          <div className="bg-blue-500 bg-opacity-30 rounded-full p-3 animate-pulse">
             <Mic className="w-6 h-6 text-blue-700" />
+          </div>
+        </div>
+      )}
+      {avatarState === "processing" && (
+        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg flex flex-col items-center justify-center z-10 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-5 flex flex-col items-center shadow-2xl max-w-xs text-center border border-gray-100">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-3" />
+            <p className="text-gray-900 text-sm font-bold mb-1">Analyzing Answer</p>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              Evaluating response metrics and preparing the next question...
+            </p>
           </div>
         </div>
       )}
