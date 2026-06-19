@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       const avatarResult = await generateAvatarVideo({
         text: avatarResponse.text,
         audioBuffer: audioBuffer,
-        emotion: avatarResponse.emotion,
+        emotion: avatarResponse.emotion as any,
       });
       videoUrl = avatarResult.videoUrl;
       console.log(

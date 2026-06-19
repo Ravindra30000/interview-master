@@ -8,7 +8,6 @@ import RequireAuth from "@/components/RequireAuth";
 import InterviewRecorder from "@/components/InterviewRecorder";
 import AvatarVideoPlayer from "@/components/AvatarVideoPlayer";
 import { useAvatarSession } from "@/hooks/useAvatarSession";
-import { getAvatarVideo } from "@/lib/avatarVideos";
 import {
   MessageCircle,
   Video as VideoIcon,
@@ -80,16 +79,21 @@ function AvatarPracticeContent() {
   >([]);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const {
     sessionId,
     lastResponse,
+    greetingResponse,
     nextQuestion,
     readyToAdvance,
     isLoading: avatarLoading,
     error: avatarError,
+    startInterview,
     sendUserAnswer,
     avatarMode,
+    setAvatarMode,
     onAudioEnded,
     state,
   } = useAvatarSession();
@@ -117,14 +121,16 @@ function AvatarPracticeContent() {
     [questions, currentIndex]
   );
 
-  const idleVideoUrl = useMemo(() => {
-    return (
-      getAvatarVideo("neutral", "idle")?.url ||
-      getAvatarVideo("thinking", "idle")?.url ||
-      getAvatarVideo("encouraging", "idle")?.url ||
-      null
-    );
-  }, []);
+  const handleStartInterview = async () => {
+    const greeting = await startInterview(role, difficulty);
+    if (greeting) {
+      setInterviewStarted(true);
+    }
+  };
+
+  const handleGreetingEnded = () => {
+    setAvatarMode("idle");
+  };
 
   useEffect(() => {
     if (currentQuestion && !isFollowUp) {
@@ -137,6 +143,9 @@ function AvatarPracticeContent() {
     transcript: string;
     duration: number;
   }) => {
+    setIsRecording(false);
+    setAvatarMode("processing");
+
     if (currentQuestion && data.transcript.trim()) {
       setUserAnswers((prev) => [
         ...prev,
@@ -152,6 +161,7 @@ function AvatarPracticeContent() {
 
     const response = await sendUserAnswer(data.transcript);
     if (!response) {
+      setAvatarMode("idle");
       return;
     }
 
@@ -167,6 +177,15 @@ function AvatarPracticeContent() {
     } else {
       setIsFollowUp(false);
     }
+  };
+
+  const handleRecordingStart = () => {
+    setIsRecording(true);
+    setAvatarMode("listening");
+  };
+
+  const handleRecordingStop = () => {
+    setIsRecording(false);
   };
 
   const handleNextQuestion = () => {
@@ -551,89 +570,129 @@ function AvatarPracticeContent() {
 
         <main className="max-w-6xl mx-auto p-6 grid gap-6 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <p className="text-sm font-semibold text-gray-800">
-                  Avatar coach
-                </p>
-                <AvatarVideoPlayer
-                  videoUrl={
-                    avatarMode === "speaking"
-                      ? lastResponse?.videoUrl || idleVideoUrl
-                      : idleVideoUrl
-                  }
-                  audioUrl={
-                    avatarMode === "speaking"
-                      ? lastResponse?.audioUrl || undefined
-                      : undefined
-                  }
-                  autoPlay={true}
-                  autoPlayAudio={avatarMode === "speaking"}
-                  loop={true}
-                  className="w-full"
-                  onAudioEnded={() => {
-                    if (onAudioEnded) {
-                      onAudioEnded();
+            {!interviewStarted ? (
+              <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Ready to Start Your Interview?
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Click below to begin your practice session with the AI interviewer.
+                  </p>
+                  <button
+                    onClick={handleStartInterview}
+                    disabled={avatarLoading}
+                    className="px-8 py-4 rounded-lg bg-primary text-white font-semibold hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed text-lg"
+                  >
+                    {avatarLoading ? "Starting Interview..." : "Start Interview"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Avatar coach
+                  </p>
+                  <AvatarVideoPlayer
+                    videoUrl={
+                      avatarMode === "greeting"
+                        ? greetingResponse?.videoUrl || null
+                        : avatarMode === "speaking"
+                        ? lastResponse?.videoUrl || null
+                        : lastResponse?.videoUrl || null
                     }
-                  }}
-                />
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 min-h-[64px]">
-                  {lastResponse ? (
-                    <>
-                      <p className="font-semibold mb-1">Avatar:</p>
-                      <p>{lastResponse.text}</p>
-                      {nextQuestion && !readyToAdvance && (
-                        <p className="mt-2 text-xs text-gray-600">
-                          Follow-up question: {nextQuestion}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-gray-600">
-                      The avatar&apos;s feedback will appear here after you
-                      answer.
-                    </p>
+                    audioUrl={
+                      avatarMode === "greeting"
+                        ? greetingResponse?.audioUrl || undefined
+                        : avatarMode === "speaking"
+                        ? lastResponse?.audioUrl || undefined
+                        : undefined
+                    }
+                    autoPlay={true}
+                    autoPlayAudio={
+                      avatarMode === "speaking" || avatarMode === "greeting"
+                    }
+                    loop={avatarMode !== "speaking" && avatarMode !== "greeting"}
+                    className="w-full"
+                    isLoading={avatarLoading}
+                    avatarState={avatarMode}
+                    onAudioEnded={() => {
+                      if (avatarMode === "greeting") {
+                        handleGreetingEnded();
+                      } else if (onAudioEnded) {
+                        onAudioEnded();
+                      }
+                    }}
+                  />
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-800 min-h-[64px]">
+                    {avatarMode === "greeting" && greetingResponse ? (
+                      <>
+                        <p className="font-semibold mb-1">Avatar:</p>
+                        <p>{greetingResponse.text}</p>
+                      </>
+                    ) : lastResponse ? (
+                      <>
+                        <p className="font-semibold mb-1">Avatar:</p>
+                        <p>{lastResponse.text}</p>
+                        {nextQuestion && !readyToAdvance && (
+                          <p className="mt-2 text-xs text-gray-600">
+                            Follow-up question: {nextQuestion}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-gray-600">
+                        {avatarMode === "listening"
+                          ? "Listening to your answer..."
+                          : avatarMode === "processing"
+                          ? "Processing your answer..."
+                          : "The avatar's feedback will appear here after you answer."}
+                      </p>
+                    )}
+                  </div>
+                  {readyToAdvance && (
+                    <button
+                      onClick={
+                        currentIndex + 1 >= questions.length
+                          ? handleGenerateReport
+                          : handleNextQuestion
+                      }
+                      disabled={isGeneratingReport}
+                      className="w-full px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {currentIndex + 1 >= questions.length
+                        ? isGeneratingReport
+                          ? "Generating Report..."
+                          : "Interview Complete"
+                        : "Next Question"}
+                    </button>
                   )}
                 </div>
-                {readyToAdvance && (
-                  <button
-                    onClick={
-                      currentIndex + 1 >= questions.length
-                        ? handleGenerateReport
-                        : handleNextQuestion
-                    }
-                    disabled={isGeneratingReport}
-                    className="w-full px-4 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {currentIndex + 1 >= questions.length
-                      ? isGeneratingReport
-                        ? "Generating Report..."
-                        : "Interview Complete"
-                      : "Next Question"}
-                  </button>
-                )}
-              </div>
 
-              <div className="space-y-3">
-                {loading && (
-                  <p className="text-sm text-gray-600">Loading questions...</p>
-                )}
-                {error && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error} (ensure `public/questions.json` exists). Try
-                    refreshing the page.
-                  </div>
-                )}
-                {!loading && !error && currentQuestion && (
-                  <InterviewRecorder
-                    question={activeQuestionText || currentQuestion.question}
-                    onComplete={handleComplete}
-                    maxDurationSec={currentQuestion.timeLimit || 120}
-                    videoQuality="medium"
-                  />
-                )}
+                <div className="space-y-3">
+                  {loading && (
+                    <p className="text-sm text-gray-600">Loading questions...</p>
+                  )}
+                  {error && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {error} (ensure `public/questions.json` exists). Try
+                      refreshing the page.
+                    </div>
+                  )}
+                  {!loading && !error && currentQuestion && interviewStarted && (
+                    <InterviewRecorder
+                      question={activeQuestionText || currentQuestion.question}
+                      onComplete={handleComplete}
+                      maxDurationSec={currentQuestion.timeLimit || 120}
+                      videoQuality="medium"
+                      onRecordingStart={handleRecordingStart}
+                      onRecordingStop={handleRecordingStop}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {statusText && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
@@ -646,21 +705,46 @@ function AvatarPracticeContent() {
               </div>
             )}
             {avatarError && (
-              <div className="card-modern p-4 border-red-200 bg-red-50 animate-slide-up">
+              <div className={`card-modern p-4 border-2 animate-slide-up ${
+                avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")
+                  ? "border-amber-300 bg-amber-50"
+                  : "border-red-200 bg-red-50"
+              }`}>
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                    avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")
+                      ? "text-amber-600"
+                      : "text-red-600"
+                  }`} />
                   <div>
-                    <p className="text-sm font-semibold text-red-800 mb-1">
-                      Avatar Error
+                    <p className={`text-sm font-semibold mb-1 ${
+                      avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")
+                        ? "text-amber-800"
+                        : "text-red-800"
+                    }`}>
+                      {avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")
+                        ? "Insufficient D-ID Credits"
+                        : "Avatar Error"}
                     </p>
-                    <p className="text-xs text-red-700">{avatarError}</p>
+                    <p className={`text-xs whitespace-pre-line ${
+                      avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")
+                        ? "text-amber-700"
+                        : "text-red-700"
+                    }`}>
+                      {avatarError}
+                    </p>
+                    {(avatarError.includes("insufficient credits") || avatarError.includes("402 Payment Required")) && (
+                      <a
+                        href="https://studio.d-id.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 transition"
+                      >
+                        Go to D-ID Studio to Add Credits →
+                      </a>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
-            {avatarError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {avatarError}
               </div>
             )}
           </div>

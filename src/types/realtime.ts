@@ -4,7 +4,7 @@ export type AvatarEmotion =
   | "thinking"
   | "concerned";
 
-export type SessionStatus = "idle" | "listening" | "processing" | "speaking";
+export type SessionStatus = "greeting" | "idle" | "listening" | "processing" | "speaking" | "ready";
 
 export interface AvatarState {
   emotion: AvatarEmotion;

@@ -111,3 +111,75 @@ export interface AvatarExpression {
   eyebrowAngle: number;
   mouthOpen: number;
 }
+
+// Avatar Persona Types (for Company Customization)
+export interface AvatarPersona {
+  id: string;
+  type: "system" | "company"; // System = default, Company = custom
+  createdBy: string; // User ID of creator
+  companyId?: string; // Company ID if type is "company"
+
+  // Identity
+  name: string;
+  role: string; // e.g., "Senior Hiring Manager"
+  companyName?: string;
+
+  // Appearance (for video generation)
+  appearance: {
+    ethnicity?: string; // Optional: influences appearance
+    gender?: "male" | "female" | "neutral";
+    ageRange?: "young" | "mid" | "senior";
+    style?: "casual" | "professional" | "formal";
+  };
+
+  // Behavior
+  behavior: {
+    pace: "slow" | "normal" | "fast"; // Speech rate
+    formality: "casual" | "professional";
+    encouragement: "supportive" | "neutral" | "challenging";
+    gestures: boolean; // Show hand movements
+    eyeContact: boolean; // Look directly at camera
+  };
+
+  // Instructions (for Gemini)
+  instructions: {
+    systemPrompt: string; // How avatar should behave
+    evaluationCriteria: string[]; // What to assess
+    followUpStrategy: string; // How to probe deeper
+  };
+
+  // Interview Config
+  interviewConfig: {
+    duration: number; // minutes
+    questionCount: number;
+    allowFollowUps: boolean;
+    scoringEnabled: boolean;
+  };
+
+  // API-specific IDs
+  apiConfig: {
+    provider: "did" | "heygen";
+    avatarId?: string; // Provider-specific avatar ID
+    presenterId?: string; // D-ID presenter ID
+  };
+
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+}
+
+// Company Types
+export interface Company {
+  id: string;
+  name: string;
+  domain?: string; // Company domain/website
+  logoUrl?: string;
+  createdAt: Date;
+  createdBy: string; // User ID of company admin
+  avatarPersonas: string[]; // Array of AvatarPersona IDs
+  settings: {
+    allowPublicPractice: boolean; // Can candidates practice with company avatar
+    requireInvitation: boolean; // Require invitation to interview
+  };
+}

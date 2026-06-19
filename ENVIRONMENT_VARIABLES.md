@@ -23,6 +23,14 @@ export FIREBASE_APP_ID="your-app-id"
 # Gemini API Key
 export GEMINI_API_KEY="your-gemini-api-key"
 
+# Avatar API Keys (D-ID for development, HeyGen for production/demo)
+export DID_API_KEY="your-did-api-key"  # Get from https://studio.d-id.com
+export HEYGEN_API_KEY="your-heygen-api-key"  # Get from https://app.heygen.com
+
+# Avatar Provider Selection (optional, defaults to 'did')
+# Set to 'heygen' for production/demo, 'did' for development
+export AVATAR_PROVIDER="did"  # Options: 'did' | 'heygen'
+
 # Optional (has defaults)
 export REGION="us-central1"  # Default: us-central1
 export SERVICE_NAME="interview-master"  # Default: interview-master
@@ -59,6 +67,24 @@ export SERVICE_NAME="interview-master"  # Default: interview-master
 2. Click "Get API Key"
 3. Create or select an API key
 4. Copy the key → `GEMINI_API_KEY`
+
+### D-ID API Key (Development)
+
+1. Go to [D-ID Studio](https://studio.d-id.com)
+2. Sign up or log in
+3. Navigate to API section
+4. Create an API key
+5. Copy the key → `DID_API_KEY`
+6. Note: D-ID offers free tier for testing
+
+### HeyGen API Key (Production/Demo)
+
+1. Go to [HeyGen App](https://app.heygen.com)
+2. Sign up or log in
+3. Navigate to API/Settings section
+4. Create an API key
+5. Copy the key → `HEYGEN_API_KEY`
+6. Note: HeyGen offers trial credits
 
 ---
 
@@ -116,6 +142,9 @@ export FIREBASE_STORAGE_BUCKET="your-bucket.appspot.com"
 export FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
 export FIREBASE_APP_ID="your-app-id"
 export GEMINI_API_KEY="your-gemini-api-key"
+export DID_API_KEY="your-did-api-key"
+export HEYGEN_API_KEY="your-heygen-api-key"
+export AVATAR_PROVIDER="did"  # or "heygen" for production
 ```
 
 Then source it before deployment:

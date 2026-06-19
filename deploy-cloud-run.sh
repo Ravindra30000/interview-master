@@ -15,18 +15,32 @@ set -e
 REGION="${REGION:-us-central1}"
 SERVICE_NAME="${SERVICE_NAME:-interview-master}"
 
-# Firebase Configuration - ALL REQUIRED from environment
+# Load from .env.local if variables are not set in the environment
+if [ -f .env.local ]; then
+  echo "Loading configuration from .env.local..."
+  # Helper function to extract value from env file and strip carriage returns
+  get_env_val() {
+    grep "^$1=" .env.local | cut -d'=' -f2- | tr -d '\r'
+  }
+  
+  [ -z "$FIREBASE_API_KEY" ] && FIREBASE_API_KEY=$(get_env_val "NEXT_PUBLIC_FIREBASE_API_KEY")
+  [ -z "$FIREBASE_AUTH_DOMAIN" ] && FIREBASE_AUTH_DOMAIN=$(get_env_val "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN")
+  [ -z "$FIREBASE_PROJECT_ID" ] && FIREBASE_PROJECT_ID=$(get_env_val "NEXT_PUBLIC_FIREBASE_PROJECT_ID")
+  [ -z "$FIREBASE_STORAGE_BUCKET" ] && FIREBASE_STORAGE_BUCKET=$(get_env_val "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET")
+  [ -z "$FIREBASE_MESSAGING_SENDER_ID" ] && FIREBASE_MESSAGING_SENDER_ID=$(get_env_val "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")
+  [ -z "$FIREBASE_APP_ID" ] && FIREBASE_APP_ID=$(get_env_val "NEXT_PUBLIC_FIREBASE_APP_ID")
+  [ -z "$GEMINI_API_KEY" ] && GEMINI_API_KEY=$(get_env_val "NEXT_PUBLIC_GEMINI_API_KEY")
+  [ -z "$GCLOUD_PROJECT_ID" ] && GCLOUD_PROJECT_ID=$(get_env_val "NEXT_PUBLIC_FIREBASE_PROJECT_ID")
+fi
+
+# Fallback values if environment still not defined
 FIREBASE_API_KEY="${FIREBASE_API_KEY:-}"
 FIREBASE_AUTH_DOMAIN="${FIREBASE_AUTH_DOMAIN:-}"
 FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-}"
 FIREBASE_STORAGE_BUCKET="${FIREBASE_STORAGE_BUCKET:-}"
 FIREBASE_MESSAGING_SENDER_ID="${FIREBASE_MESSAGING_SENDER_ID:-}"
 FIREBASE_APP_ID="${FIREBASE_APP_ID:-}"
-
-# Gemini API Key - REQUIRED
 GEMINI_API_KEY="${GEMINI_API_KEY:-}"
-
-# Google Cloud Project ID - REQUIRED
 GCLOUD_PROJECT_ID="${GCLOUD_PROJECT_ID:-}"
 
 # Validate ALL required environment variables

@@ -50,6 +50,8 @@ interface Props {
   onComplete: (data: { blob: Blob | null; transcript: string; duration: number }) => void;
   maxDurationSec?: number;
   videoQuality?: "low" | "medium" | "high";
+  onRecordingStart?: () => void;
+  onRecordingStop?: () => void;
 }
 
 interface VideoQualityOption {
@@ -76,7 +78,7 @@ const QUALITY_OPTIONS: Record<"low" | "medium" | "high", VideoQualityOption> = {
   },
 };
 
-export default function InterviewRecorder({ question, onComplete, maxDurationSec = 120, videoQuality = "medium" }: Props) {
+export default function InterviewRecorder({ question, onComplete, maxDurationSec = 120, videoQuality = "medium", onRecordingStart, onRecordingStop }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -410,6 +412,7 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
       isRecordingActiveRef.current = true;
       startSpeechRecognition();
       setRecording(true);
+      onRecordingStart?.();
     } catch (err: any) {
       setError(err?.message || "Unable to access camera/microphone");
     }
@@ -427,6 +430,8 @@ export default function InterviewRecorder({ question, onComplete, maxDurationSec
     
     // Stop speech recognition (will clear interim results)
     stopSpeechRecognition();
+    
+    onRecordingStop?.();
   };
 
   const resetCurrent = () => {

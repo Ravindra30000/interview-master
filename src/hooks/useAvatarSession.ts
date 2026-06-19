@@ -10,7 +10,7 @@ import {
 } from "@/lib/realtime";
 import type { SessionState, ConversationMessage } from "@/types/realtime";
 
-export type AvatarMode = "idle" | "speaking" | "listening";
+export type AvatarMode = "greeting" | "idle" | "listening" | "processing" | "speaking" | "ready";
 
 export interface AvatarApiResponse {
   avatarResponse: {
@@ -23,17 +23,26 @@ export interface AvatarApiResponse {
   nextQuestion?: string;
 }
 
+export interface GreetingResponse {
+  videoUrl: string;
+  audioUrl: string;
+  text: string;
+}
+
 export interface AvatarSessionState {
   sessionId: string | null;
   state: SessionState | null;
   lastResponse: AvatarApiResponse["avatarResponse"] | null;
+  greetingResponse: GreetingResponse | null;
   nextQuestion: string | null;
   readyToAdvance: boolean;
   isLoading: boolean;
   error: string | null;
+  startInterview: (role?: string, difficulty?: string) => Promise<GreetingResponse | null>;
   sendUserAnswer: (transcript: string) => Promise<AvatarApiResponse | null>;
   avatarMode: AvatarMode;
   onAudioEnded: () => void;
+  setAvatarMode: (mode: AvatarMode) => void;
 }
 
 export function useAvatarSession(): AvatarSessionState {
@@ -42,6 +51,7 @@ export function useAvatarSession(): AvatarSessionState {
   const [lastResponse, setLastResponse] = useState<
     AvatarApiResponse["avatarResponse"] | null
   >(null);
+  const [greetingResponse, setGreetingResponse] = useState<GreetingResponse | null>(null);
   const [nextQuestion, setNextQuestion] = useState<string | null>(null);
   const [readyToAdvance, setReadyToAdvance] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,6 +123,66 @@ export function useAvatarSession(): AvatarSessionState {
     };
   }, [sessionId]);
 
+  const startInterview = useCallback(
+    async (role?: string, difficulty?: string): Promise<GreetingResponse | null> => {
+      if (!sessionId) {
+        setError("Session not initialized");
+        return null;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setAvatarMode("greeting");
+
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
+
+        // Call greeting API
+        const response = await fetch("/api/avatar/greet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            role,
+            difficulty,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `API error: ${response.status}`);
+        }
+
+        const data: GreetingResponse = await response.json();
+
+        // Update session state
+        await updateSessionState(sessionId, {
+          status: "greeting",
+          avatarState: {
+            emotion: "encouraging",
+            videoUrl: data.videoUrl,
+            audioUrl: data.audioUrl,
+            isPlaying: true,
+          },
+        });
+
+        setGreetingResponse(data);
+        return data;
+      } catch (err: any) {
+        console.error("[useAvatarSession] Start interview error:", err);
+        setError(err?.message || "Failed to start interview");
+        setAvatarMode("idle");
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [sessionId]
+  );
+
   const sendUserAnswer = useCallback(
     async (transcript: string): Promise<AvatarApiResponse | null> => {
       if (!sessionId || !transcript.trim()) {
@@ -138,6 +208,7 @@ export function useAvatarSession(): AvatarSessionState {
 
         const updatedHistory = [...conversationHistory, userMessage];
 
+        setAvatarMode("processing");
         await updateSessionState(sessionId, {
           status: "processing",
           conversationHistory: updatedHistory,
@@ -156,7 +227,13 @@ export function useAvatarSession(): AvatarSessionState {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `API error: ${response.status}`);
+          const errorMessage = errorData.error || `API error: ${response.status}`;
+          
+          // Preserve error type for UI handling
+          const error = new Error(errorMessage);
+          (error as any).errorType = errorData.errorType;
+          (error as any).status = response.status;
+          throw error;
         }
 
         const data: AvatarApiResponse = await response.json();
@@ -197,14 +274,15 @@ export function useAvatarSession(): AvatarSessionState {
   );
 
   const handleAudioEnded = useCallback(() => {
-    if (avatarMode === "speaking") {
-      setAvatarMode("idle");
+    if (avatarMode === "speaking" || avatarMode === "greeting") {
+      const nextMode: AvatarMode = avatarMode === "greeting" ? "idle" : "ready";
+      setAvatarMode(nextMode);
       if (sessionId) {
         updateSessionState(sessionId, {
-          status: "idle",
+          status: nextMode === "ready" ? "ready" : "idle",
           avatarState: {
             emotion: "neutral",
-            videoUrl: null,
+            videoUrl: lastResponse?.videoUrl || null,
             audioUrl: null,
             isPlaying: false,
           },
@@ -213,18 +291,21 @@ export function useAvatarSession(): AvatarSessionState {
         });
       }
     }
-  }, [avatarMode, sessionId]);
+  }, [avatarMode, sessionId, lastResponse]);
 
   return {
     sessionId,
     state,
     lastResponse,
+    greetingResponse,
     nextQuestion,
     readyToAdvance,
     isLoading,
     error,
+    startInterview,
     sendUserAnswer,
     avatarMode,
     onAudioEnded: handleAudioEnded,
+    setAvatarMode,
   };
 }
